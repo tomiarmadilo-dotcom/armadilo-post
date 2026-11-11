@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Armadilo Post</title>
+<script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: #0e0e10;
+    color: #e6e6e6;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  .card {
+    width: 100%;
+    max-width: 460px;
+    background: #17171a;
+    border: 1px solid #26262b;
+    border-radius: 16px;
+    padding: 28px 24px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  }
+  .brand {
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    margin: 0 0 4px;
+    color: #ffffff;
+  }
+  .brand span { color: #4da3ff; }
+  .tagline {
+    font-size: 12px;
+    color: #7a7a85;
+    margin: 0 0 22px;
+  }
+  #dropzone {
+    border: 1.5px dashed #3a3a42;
+    border-radius: 12px;
+    padding: 36px 16px;
+    text-align: center;
+    color: #9a9aa5;
+    font-size: 14px;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s, color 0.2s;
+    background: #121214;
+  }
+  #dropzone.dragover {
+    border-color: #4da3ff;
+    background: #10202f;
+    color: #cfe4ff;
+  }
+  #dropzone.hasfile {
+    border-color: #2f7d4f;
+    background: #10231a;
+    color: #b9f0cf;
+  }
+  button {
+    width: 100%;
+    margin-top: 18px;
+    padding: 13px;
+    border: none;
+    border-radius: 10px;
+    background: #4da3ff;
+    color: #08121e;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.2s, opacity 0.2s;
+  }
+  button:hover { background: #6bb4ff; }
+  button:disabled { background: #2c2c33; color: #6a6a75; cursor: not-allowed; }
+  .link-box {
+    margin-top: 16px;
+    padding: 12px 14px;
+    background: #101012;
+    border: 1px solid #2c2c33;
+    border-radius: 10px;
+    font-size: 12px;
+    color: #9a9aa5;
+    word-break: break-all;
+    line-height: 1.5;
+  }
+  .link-box b { color: #e6e6e6; }
+  #linkText {
+    display: block;
+    margin-top: 6px;
+    color: #4da3ff;
+    user-select: all;
+  }
+  .status {
+    margin-top: 14px;
+    font-size: 13px;
+    color: #8a8a95;
+    line-height: 1.5;
+    word-break: break-word;
+  }
+  .status.ok { color: #6fd48f; }
+  .status.err { color: #ff6b6b; }
+  #progressWrap {
+    display: none;
+    margin-top: 16px;
+    height: 8px;
+    background: #26262b;
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  #progressBar {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #4da3ff, #6fd48f);
+    transition: width 0.2s;
+  }
+  .hidden { display: none !important; }
+  .foot {
+    margin-top: 18px;
+    font-size: 11px;
+    color: #55555f;
+    text-align: center;
+    line-height: 1.5;
+  }
+  .copy-btn {
+    margin-top: 10px;
+    background: #26262b;
+    color: #e6e6e6;
+    font-weight: 600;
+  }
+  .copy-btn:hover { background: #33333a; }
+</style>
+</head>
+<body>
+
+<div class="card" id="cardPengirim">
+  <p class="brand">Armadilo <span>Post</span></p>
+  <p class="tagline">Kirim file langsung antar browser. Tanpa akun, tanpa singgah di server.</p>
+
+  <div id="dropzone">Tarik dan lepas file di sini, atau klik untuk memilih</div>
+  <input type="file" id="fileInput" class="hidden">
+
+  <button id="btnBuat">Buat Link</button>
+
+  <div id="resultBox" class="hidden">
+    <div class="link-box">
+      <b>Link untuk penerima:</b>
+      <span id="linkText"></span>
+    </div>
+    <button class="copy-btn" id="btnCopy">Salin Link</button>
+    <div class="status" id="statusPengirim"></div>
+  </div>
+
+  <div id="progressWrap"><div id="progressBar"></div></div>
+
+  <p class="foot">Pengirim harus tetap membuka halaman ini sampai transfer selesai. Jangan bagikan link ke sembarang orang.</p>
+</div>
+
+<div class="card hidden" id="cardPenerima">
+  <p class="brand">Armadilo <span>Post</span></p>
+  <p class="tagline">Menghubungkan ke pengirim dan mengunduh file.</p>
+
+  <button id="btnUnduh">Hubungkan dan Unduh</button>
+
+  <div class="status" id="statusPenerima"></div>
+
+  <div id="progressWrapRecv" style="display:none; margin-top:16px; height:8px; background:#26262b; border-radius:6px; overflow:hidden;">
+    <div id="progressBarRecv" style="height:100%; width:0%; background:linear-gradient(90deg,#4da3ff,#6fd48f); transition:width 0.2s;"></div>
+  </div>
+</div>
+
+<script>
+(function() {
+  "use strict";
+
+  function formatBytes(b) {
+    if (b < 1024) return b + " B";
+    if (b < 1048576) return (b/1024).toFixed(1) + " KB";
+    if (b < 1073741824) return (b/1048576).toFixed(1) + " MB";
+    return (b/1073741824).toFixed(2) + " GB";
+  }
+  function $(id) { return document.getElementById(id); }
+
+  var hash = window.location.hash.replace(/^#/, "");
+  var isReceiver = hash.indexOf("recv=") === 0;
+
+  if (isReceiver) {
+    $("cardPengirim").classList.add("hidden");
+    $("cardPenerima").classList.remove("hidden");
+    initReceiver(hash);
+  } else {
+    initSender();
+  }
+
+  function initSender() {
+    var dropzone = $("dropzone");
+    var fileInput = $("fileInput");
+    var btnBuat = $("btnBuat");
+    var resultBox = $("resultBox");
+    var linkText = $("linkText");
+    var btnCopy = $("btnCopy");
+    var statusPengirim = $("statusPengirim");
+    var progressWrap = $("progressWrap");
+    var progressBar = $("progressBar");
+
+    var selectedFile = null;
+    var peer = null;
+    var chunkSize = 16 * 1024;
+    var currentLink = "";
+
+    function pickFile(f) {
+      selectedFile = f;
+      dropzone.textContent = f.name + " (" + formatBytes(f.size) + ")";
+      dropzone.classList.add("hasfile");
+    }
+
+    dropzone.addEventListener("click", function() { fileInput.click(); });
+    dropzone.addEventListener("dragover", function(e) {
+      e.preventDefault();
+      dropzone.classList.add("dragover");
+    });
+    dropzone.addEventListener("dragleave", function() {
+      dropzone.classList.remove("dragover");
+    });
+    dropzone.addEventListener("drop", function(e) {
+      e.preventDefault();
+      dropzone.classList.remove("dragover");
+      if (e.dataTransfer.files.length > 0) pickFile(e.dataTransfer.files[0]);
+    });
+    fileInput.addEventListener("change", function() {
+      if (fileInput.files.length > 0) pickFile(fileInput.files[0]);
+    });
+
+    btnBuat.addEventListener("click", function() {
+      if (!selectedFile) {
+        statusPengirim.className = "status err";
+        statusPengirim.textContent = "Pilih file dulu, sayang.";
+        return;
+      }
+
+      btnBuat.disabled = true;
+      btnBuat.textContent = "Menyiapkan...";
+
+      peer = new Peer();
+
+      peer.on("open", function(id) {
+        currentLink = window.location.origin + window.location.pathname + "#recv=" + id;
+        linkText.textContent = currentLink;
+        resultBox.classList.remove("hidden");
+        btnBuat.textContent = "Link Dibuat";
+        statusPengirim.className = "status ok";
+        statusPengirim.textContent = "Menunggu penerima membuka link...";
+      });
+
+      peer.on("error", function(err) {
+        statusPengirim.className = "status err";
+        statusPengirim.textContent = "Terjadi kesalahan: " + err.message;
+        btnBuat.disabled = false;
+        btnBuat.textContent = "Buat Link";
+      });
+
+      peer.on("connection", function(conn) {
+        conn.on("open", function() {
+          conn.send({ type: "meta", name: selectedFile.name, size: selectedFile.size });
+          sendFile(conn, selectedFile, statusPengirim, progressWrap, progressBar);
+        });
+        conn.on("error", function(err) {
+          statusPengirim.className = "status err";
+          statusPengirim.textContent = "Koneksi error: " + err.message;
+        });
+      });
+    });
+
+    btnCopy.addEventListener("click", function() {
+      if (!currentLink) return;
+      navigator.clipboard.writeText(currentLink).then(function() {
+        btnCopy.textContent = "Tersalin";
+        setTimeout(function() { btnCopy.textContent = "Salin Link"; }, 1500);
+      }).catch(function() {
+        var ta = document.createElement("textarea");
+        ta.value = currentLink;
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand("copy"); } catch (e) {}
+        document.body.removeChild(ta);
+        btnCopy.textContent = "Tersalin";
+        setTimeout(function() { btnCopy.textContent = "Salin Link"; }, 1500);
+      });
+    });
+
+    function sendFile(conn, file, statusEl, wrapEl, barEl) {
+      var offset = 0;
+      wrapEl.style.display = "block";
+      barEl.style.width = "0%";
+      statusEl.className = "status ok";
+      statusEl.textContent = "Mengirim: " + file.name + " (" + formatBytes(file.size) + ")";
+
+      var reader = new FileReader();
+      function readNext() {
+        if (offset >= file.size) {
+          conn.send({ type: "done" });
+          barEl.style.width = "100%";
+          statusEl.textContent = "Selesai terkirim. Kamu boleh menutup halaman ini.";
+          return;
+        }
+        reader.readAsArrayBuffer(file.slice(offset, offset + chunkSize));
+      }
+      reader.onload = function(e) {
+        if (!conn.open) return;
+        conn.send({ type: "chunk", data: e.target.result });
+        offset += e.target.result.byteLength;
+        barEl.style.width = ((offset / file.size) * 100).toFixed(1) + "%";
+        readNext();
+      };
+      reader.onerror = function() {
+        statusEl.className = "status err";
+        statusEl.textContent = "Gagal membaca file.";
+      };
+      readNext();
+    }
+  }
+
+  function initReceiver(hash) {
+    var btnUnduh = $("btnUnduh");
+    var statusPenerima = $("statusPenerima");
+    var progressWrapRecv = $("progressWrapRecv");
+    var progressBarRecv = $("progressBarRecv");
+
+    var senderId = hash.replace("recv=", "");
+
+    var recvPeer = null;
+    var conn = null;
+    var receivedChunks = [];
+    var receivedSize = 0;
+    var totalSize = 0;
+    var incomingMeta = null;
+
+    btnUnduh.addEventListener("click", function() {
+      btnUnduh.disabled = true;
+      statusPenerima.className = "status";
+      statusPenerima.textContent = "Menghubungkan ke pengirim...";
+
+      recvPeer = new Peer();
+      recvPeer.on("open", function() {
+        conn = recvPeer.connect(senderId);
+
+        conn.on("open", function() {
+          statusPenerima.className = "status ok";
+          statusPenerima.textContent = "Terhubung. Menunggu data...";
+        });
+
+        conn.on("data", function(data) {
+          if (!data || !data.type) return;
+          if (data.type === "meta") {
+            incomingMeta = data;
+            totalSize = data.size;
+            receivedChunks = [];
+            receivedSize = 0;
+            statusPenerima.className = "status ok";
+            statusPenerima.textContent = "Menerima: " + data.name + " (" + formatBytes(data.size) + ")";
+            progressWrapRecv.style.display = "block";
+            progressBarRecv.style.width = "0%";
+          } else if (data.type === "chunk") {
+            receivedChunks.push(data.data);
+            receivedSize += data.data.byteLength;
+            if (totalSize > 0) {
+              progressBarRecv.style.width = ((receivedSize / totalSize) * 100).toFixed(1) + "%";
+            }
+          } else if (data.type === "done") {
+            var blob = new Blob(receivedChunks);
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement("a");
+            a.href = url;
+            a.download = incomingMeta ? incomingMeta.name : "file";
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            setTimeout(function() { URL.revokeObjectURL(url); }, 10000);
+            progressBarRecv.style.width = "100%";
+            statusPenerima.className = "status ok";
+            statusPenerima.textContent = "Selesai. File sudah diunduh.";
+          }
+        });
+
+        conn.on("error", function(err) {
+          statusPenerima.className = "status err";
+          statusPenerima.textContent = "Koneksi gagal: " + err.message;
+          btnUnduh.disabled = false;
+        });
+      });
+
+      recvPeer.on("error", function(err) {
+        statusPenerima.className = "status err";
+        statusPenerima.textContent = "Peer error: " + err.message;
+        btnUnduh.disabled = false;
+      });
+    });
+  }
+})();
+</script>
+</body>
+</html>
