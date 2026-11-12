@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Armadilo Post</title>
 <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
   * { box-sizing: border-box; }
   body {
@@ -132,6 +133,30 @@
     font-weight: 600;
   }
   .copy-btn:hover { background: #33333a; }
+  
+  /* Gaya untuk QR Code */
+  .qr-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 20px;
+    padding: 16px;
+    background: #ffffff; /* Latar putih agar QR code kontras dan mudah dipindai */
+    border-radius: 12px;
+    border: 1px solid #2c2c33;
+  }
+  .qr-container p {
+    margin: 0 0 10px 0;
+    font-size: 12px;
+    color: #333333;
+    font-weight: 600;
+    text-align: center;
+  }
+  #qrcode {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
 </style>
 </head>
 <body>
@@ -151,6 +176,13 @@
       <span id="linkText"></span>
     </div>
     <button class="copy-btn" id="btnCopy">Salin Link</button>
+    
+    <!-- Wadah untuk QR Code -->
+    <div class="qr-container" id="qrContainer">
+      <p>Atau pindai QR code ini dengan HP</p>
+      <div id="qrcode"></div>
+    </div>
+
     <div class="status" id="statusPengirim"></div>
   </div>
 
@@ -195,6 +227,7 @@
     initSender();
   }
 
+  // ================= MODE PENGIRIM =================
   function initSender() {
     var dropzone = $("dropzone");
     var fileInput = $("fileInput");
@@ -205,11 +238,13 @@
     var statusPengirim = $("statusPengirim");
     var progressWrap = $("progressWrap");
     var progressBar = $("progressBar");
+    var qrContainer = $("qrContainer");
 
     var selectedFile = null;
     var peer = null;
     var chunkSize = 16 * 1024;
     var currentLink = "";
+    var qrcode = null; // Menyimpan instance QR Code
 
     function pickFile(f) {
       selectedFile = f;
@@ -243,6 +278,7 @@
 
       btnBuat.disabled = true;
       btnBuat.textContent = "Menyiapkan...";
+      qrContainer.classList.add("hidden"); // Sembunyikan QR lama jika ada
 
       peer = new Peer();
 
@@ -253,6 +289,19 @@
         btnBuat.textContent = "Link Dibuat";
         statusPengirim.className = "status ok";
         statusPengirim.textContent = "Menunggu penerima membuka link...";
+
+        // Membuat QR Code
+        $("qrcode").innerHTML = ""; // Bersihkan wadah
+        qrcode = new QRCode(document.getElementById("qrcode"), {
+          text: currentLink,
+          width: 160,
+          height: 160,
+          colorDark : "#000000",
+          colorLight : "#ffffff",
+          correctLevel : QRCode.CorrectLevel.H // Tingkat koreksi error tinggi agar mudah dipindai
+        });
+        
+        qrContainer.classList.remove("hidden");
       });
 
       peer.on("error", function(err) {
@@ -323,6 +372,7 @@
     }
   }
 
+  // ================= MODE PENERIMA =================
   function initReceiver(hash) {
     var btnUnduh = $("btnUnduh");
     var statusPenerima = $("statusPenerima");
