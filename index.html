@@ -137,9 +137,10 @@
   #progressBar, #progressBarRecv { height: 100%; width: 0%; background: linear-gradient(90deg, #4da3ff, #6fd48f); transition: width 0.2s; }
 
   .hidden { display: none !important; }
-  .foot { margin-top: 24px; font-size: 11px; color: #55555f; text-align: center; line-height: 1.5; }
   
-  /* Gaya untuk Pemindai Kamera */
+  .foot { margin-top: 24px; font-size: 11px; color: #55555f; text-align: center; line-height: 1.5; }
+  .credit { margin-top: 12px; font-size: 10px; color: #44444d; text-align: center; letter-spacing: 0.5px; }
+  
   #reader { width: 100%; border-radius: 8px; overflow: hidden; margin-top: 10px; display: none; background: #000; }
   #reader video { border-radius: 8px; object-fit: cover; }
 </style>
@@ -198,6 +199,7 @@
   </div>
 
   <p class="foot">Pengirim harus tetap membuka halaman ini sampai transfer selesai. Jangan bagikan link ke sembarang orang.</p>
+  <p class="credit">Created by Bustami_Atmadja x DeepSeek</p>
 </div>
 
 <script>
@@ -212,7 +214,6 @@
   }
   function $(id) { return document.getElementById(id); }
 
-  // Cek URL apakah dia membawa parameter link (jika ya, langsung isi otomatis)
   var hash = window.location.hash.replace(/^#/, "");
   if (hash.indexOf("recv=") === 0) {
     $("linkInput").value = window.location.href;
@@ -388,7 +389,6 @@
       { facingMode: "environment" },
       { fps: 10, qrbox: { width: 250, height: 250 } },
       function(decodedText) {
-        // Sukses pindai
         if (decodedText.indexOf("#recv=") !== -1) {
           hentikanKamera();
           linkInput.value = decodedText;
@@ -396,7 +396,7 @@
           mulaiUnduh(senderId);
         }
       },
-      function(error) {} // Abaikan error frame per frame
+      function(error) {}
     ).catch(function(err) {
       statusPenerima.className = "status err";
       statusPenerima.textContent = "Gagal akses kamera: " + err;
