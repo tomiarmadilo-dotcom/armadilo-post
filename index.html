@@ -140,8 +140,21 @@
   .status.ok { color: #6fd48f; }
   .status.err { color: #ff6b6b; }
 
-  #progressWrap, #progressWrapRecv { display: none; margin-top: 16px; height: 6px; background: #26262b; border-radius: 6px; overflow: hidden; }
-  #progressBar, #progressBarRecv { height: 100%; width: 0%; background: linear-gradient(90deg, #4da3ff, #6fd48f); transition: width 0.2s; }
+  /* Perbaikan: Memastikan wadah progres muncul dengan benar */
+  #progressWrap, #progressWrapRecv, #progressWrapRecvKhusus { 
+    display: none; 
+    margin-top: 16px; 
+    height: 8px; 
+    background: #26262b; 
+    border-radius: 6px; 
+    overflow: hidden; 
+  }
+  #progressBar, #progressBarRecv, #progressBarRecvKhusus { 
+    height: 100%; 
+    width: 0%; 
+    background: linear-gradient(90deg, #4da3ff, #6fd48f); 
+    transition: width 0.2s; 
+  }
 
   .hidden { display: none !important; }
   
@@ -223,7 +236,11 @@
   <button id="btnUnduhLangsung" style="font-size: 16px; padding: 16px;">Hubungkan & Unduh File</button>
 
   <div id="statusPenerimaKhusus" class="status"></div>
-  <div id="progressWrapRecvKhusus"><div id="progressBarRecvKhusus"></div></div>
+  
+  <!-- Perbaikan: Bar Progres Khusus Penerima -->
+  <div id="progressWrapRecvKhusus">
+    <div id="progressBarRecvKhusus"></div>
+  </div>
   
   <p class="credit" style="margin-top: 24px;">Created by Bustami_Atmadja x DeepSeek</p>
 </div>
@@ -245,14 +262,12 @@
 
   // LOGIKA TAMPILAN
   if (isLinkPenerima) {
-    // Sembunyikan halaman utama, tampilkan halaman khusus penerima
     $("cardUtama").classList.add("hidden");
     $("cardPenerimaKhusus").classList.remove("hidden");
     
     var senderId = hash.replace("recv=", "");
     mulaiUnduhKhusus(senderId);
   } else {
-    // Halaman utama normal (dua kolom)
     $("cardUtama").classList.remove("hidden");
     inisialisasiHalamanUtama();
   }
