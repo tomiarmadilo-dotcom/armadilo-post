@@ -29,6 +29,13 @@
     padding: 28px;
     box-shadow: 0 20px 60px rgba(0,0,0,0.5);
   }
+  
+  /* Gaya khusus untuk tampilan penerima (unduhan) */
+  .card-receiver {
+    max-width: 460px;
+    text-align: center;
+  }
+
   .header { text-align: center; margin-bottom: 24px; }
   .brand {
     font-size: 24px;
@@ -129,11 +136,11 @@
   .qr-container p { margin: 0 0 8px 0; font-size: 11px; color: #333; font-weight: 600; }
   #qrcode { display: flex; justify-content: center; }
 
-  .status { margin-top: 12px; font-size: 12px; color: #8a8a95; line-height: 1.4; word-break: break-word; }
+  .status { margin-top: 16px; font-size: 13px; color: #8a8a95; line-height: 1.5; word-break: break-word; }
   .status.ok { color: #6fd48f; }
   .status.err { color: #ff6b6b; }
 
-  #progressWrap, #progressWrapRecv { display: none; margin-top: 12px; height: 6px; background: #26262b; border-radius: 6px; overflow: hidden; }
+  #progressWrap, #progressWrapRecv { display: none; margin-top: 16px; height: 6px; background: #26262b; border-radius: 6px; overflow: hidden; }
   #progressBar, #progressBarRecv { height: 100%; width: 0%; background: linear-gradient(90deg, #4da3ff, #6fd48f); transition: width 0.2s; }
 
   .hidden { display: none !important; }
@@ -147,6 +154,9 @@
 </head>
 <body>
 
+<!-- ========================================== -->
+<!-- TAMPILAN 1: HALAMAN UTAMA (PENGIRIM & PENERIMA MANUAL) -->
+<!-- ========================================== -->
 <div class="card" id="cardUtama">
   <div class="header">
     <p class="brand">Armadilo <span>Post</span></p>
@@ -178,7 +188,7 @@
       <div id="progressWrap"><div id="progressBar"></div></div>
     </div>
 
-    <!-- BAGIAN KANAN: PENERIMA -->
+    <!-- BAGIAN KANAN: PENERIMA MANUAL -->
     <div class="section">
       <h2>2. Terima File (Penerima)</h2>
       <p style="font-size: 12px; color: #9a9aa5; margin-top: 0;">Tempel link dari pengirim, atau pindai QR code secara langsung.</p>
@@ -189,7 +199,6 @@
         <button class="btn-secondary" id="btnScan">Pindai QR Code</button>
       </div>
 
-      <!-- Wadah Kamera Pemindai -->
       <div id="reader"></div>
       <button class="btn-secondary hidden" id="btnBatalScan" style="margin-top: 8px; color: #ff6b6b;">Batal Pindai</button>
 
@@ -200,6 +209,23 @@
 
   <p class="foot">Pengirim harus tetap membuka halaman ini sampai transfer selesai. Jangan bagikan link ke sembarang orang.</p>
   <p class="credit">Created by Bustami_Atmadja x DeepSeek</p>
+</div>
+
+<!-- ========================================== -->
+<!-- TAMPILAN 2: HALAMAN PENERIMA (SAAT LINK DIKLIK) -->
+<!-- ========================================== -->
+<div class="card card-receiver hidden" id="cardPenerimaKhusus">
+  <div class="header">
+    <p class="brand">Armadilo <span>Post</span></p>
+    <p class="tagline">Seseorang sedang mengirimkan file untukmu.</p>
+  </div>
+
+  <button id="btnUnduhLangsung" style="font-size: 16px; padding: 16px;">Hubungkan & Unduh File</button>
+
+  <div id="statusPenerimaKhusus" class="status"></div>
+  <div id="progressWrapRecvKhusus"><div id="progressBarRecvKhusus"></div></div>
+  
+  <p class="credit" style="margin-top: 24px;">Created by Bustami_Atmadja x DeepSeek</p>
 </div>
 
 <script>
@@ -215,146 +241,224 @@
   function $(id) { return document.getElementById(id); }
 
   var hash = window.location.hash.replace(/^#/, "");
-  if (hash.indexOf("recv=") === 0) {
-    $("linkInput").value = window.location.href;
-    $("statusPenerima").className = "status ok";
-    $("statusPenerima").textContent = "Link terdeteksi. Klik Hubungkan & Unduh.";
+  var isLinkPenerima = hash.indexOf("recv=") === 0;
+
+  // LOGIKA TAMPILAN
+  if (isLinkPenerima) {
+    // Sembunyikan halaman utama, tampilkan halaman khusus penerima
+    $("cardUtama").classList.add("hidden");
+    $("cardPenerimaKhusus").classList.remove("hidden");
+    
+    var senderId = hash.replace("recv=", "");
+    mulaiUnduhKhusus(senderId);
+  } else {
+    // Halaman utama normal (dua kolom)
+    $("cardUtama").classList.remove("hidden");
+    inisialisasiHalamanUtama();
   }
 
-  // ================= LOGIKA PENGIRIM =================
-  var dropzone = $("dropzone");
-  var fileInput = $("fileInput");
-  var btnBuat = $("btnBuat");
-  var resultBox = $("resultBox");
-  var linkText = $("linkText");
-  var btnCopy = $("btnCopy");
-  var statusPengirim = $("statusPengirim");
-  var progressWrap = $("progressWrap");
-  var progressBar = $("progressBar");
-  var qrContainer = $("qrContainer");
+  // ================= LOGIKA HALAMAN UTAMA =================
+  function inisialisasiHalamanUtama() {
+    var dropzone = $("dropzone");
+    var fileInput = $("fileInput");
+    var btnBuat = $("btnBuat");
+    var resultBox = $("resultBox");
+    var linkText = $("linkText");
+    var btnCopy = $("btnCopy");
+    var statusPengirim = $("statusPengirim");
+    var progressWrap = $("progressWrap");
+    var progressBar = $("progressBar");
+    var qrContainer = $("qrContainer");
 
-  var selectedFile = null;
-  var peer = null;
-  var chunkSize = 16 * 1024;
-  var currentLink = "";
+    var selectedFile = null;
+    var peer = null;
+    var chunkSize = 16 * 1024;
+    var currentLink = "";
 
-  dropzone.addEventListener("click", function() { fileInput.click(); });
-  dropzone.addEventListener("dragover", function(e) { e.preventDefault(); dropzone.classList.add("dragover"); });
-  dropzone.addEventListener("dragleave", function() { dropzone.classList.remove("dragover"); });
-  dropzone.addEventListener("drop", function(e) {
-    e.preventDefault(); dropzone.classList.remove("dragover");
-    if (e.dataTransfer.files.length > 0) pickFile(e.dataTransfer.files[0]);
-  });
-  fileInput.addEventListener("change", function() {
-    if (fileInput.files.length > 0) pickFile(fileInput.files[0]);
-  });
-
-  function pickFile(f) {
-    selectedFile = f;
-    dropzone.textContent = f.name + " (" + formatBytes(f.size) + ")";
-    dropzone.classList.add("hasfile");
-  }
-
-  btnBuat.addEventListener("click", function() {
-    if (!selectedFile) {
-      statusPengirim.className = "status err"; statusPengirim.textContent = "Pilih file dulu."; return;
-    }
-    btnBuat.disabled = true; btnBuat.textContent = "Menyiapkan...";
-    qrContainer.classList.add("hidden");
-
-    peer = new Peer();
-    peer.on("open", function(id) {
-      currentLink = window.location.origin + window.location.pathname + "#recv=" + id;
-      linkText.textContent = currentLink;
-      resultBox.classList.remove("hidden");
-      btnBuat.textContent = "Link Dibuat";
-      statusPengirim.className = "status ok"; statusPengirim.textContent = "Menunggu penerima...";
-
-      $("qrcode").innerHTML = "";
-      new QRCode(document.getElementById("qrcode"), {
-        text: currentLink, width: 140, height: 140, correctLevel: QRCode.CorrectLevel.H
-      });
-      qrContainer.classList.remove("hidden");
+    dropzone.addEventListener("click", function() { fileInput.click(); });
+    dropzone.addEventListener("dragover", function(e) { e.preventDefault(); dropzone.classList.add("dragover"); });
+    dropzone.addEventListener("dragleave", function() { dropzone.classList.remove("dragover"); });
+    dropzone.addEventListener("drop", function(e) {
+      e.preventDefault(); dropzone.classList.remove("dragover");
+      if (e.dataTransfer.files.length > 0) pickFile(e.dataTransfer.files[0]);
+    });
+    fileInput.addEventListener("change", function() {
+      if (fileInput.files.length > 0) pickFile(fileInput.files[0]);
     });
 
-    peer.on("connection", function(conn) {
-      conn.on("open", function() {
-        conn.send({ type: "meta", name: selectedFile.name, size: selectedFile.size });
-        var offset = 0;
-        progressWrap.style.display = "block"; progressBar.style.width = "0%";
-        statusPengirim.textContent = "Mengirim: " + selectedFile.name;
+    function pickFile(f) {
+      selectedFile = f;
+      dropzone.textContent = f.name + " (" + formatBytes(f.size) + ")";
+      dropzone.classList.add("hasfile");
+    }
 
-        var reader = new FileReader();
-        function readNext() {
-          if (offset >= selectedFile.size) {
-            conn.send({ type: "done" });
-            progressBar.style.width = "100%";
-            statusPengirim.textContent = "Selesai terkirim!";
-            return;
+    btnBuat.addEventListener("click", function() {
+      if (!selectedFile) {
+        statusPengirim.className = "status err"; statusPengirim.textContent = "Pilih file dulu."; return;
+      }
+      btnBuat.disabled = true; btnBuat.textContent = "Menyiapkan...";
+      qrContainer.classList.add("hidden");
+
+      peer = new Peer();
+      peer.on("open", function(id) {
+        currentLink = window.location.origin + window.location.pathname + "#recv=" + id;
+        linkText.textContent = currentLink;
+        resultBox.classList.remove("hidden");
+        btnBuat.textContent = "Link Dibuat";
+        statusPengirim.className = "status ok"; statusPengirim.textContent = "Menunggu penerima...";
+
+        $("qrcode").innerHTML = "";
+        new QRCode(document.getElementById("qrcode"), {
+          text: currentLink, width: 140, height: 140, correctLevel: QRCode.CorrectLevel.H
+        });
+        qrContainer.classList.remove("hidden");
+      });
+
+      peer.on("connection", function(conn) {
+        conn.on("open", function() {
+          conn.send({ type: "meta", name: selectedFile.name, size: selectedFile.size });
+          var offset = 0;
+          progressWrap.style.display = "block"; progressBar.style.width = "0%";
+          statusPengirim.textContent = "Mengirim: " + selectedFile.name;
+
+          var reader = new FileReader();
+          function readNext() {
+            if (offset >= selectedFile.size) {
+              conn.send({ type: "done" });
+              progressBar.style.width = "100%";
+              statusPengirim.textContent = "Selesai terkirim!";
+              return;
+            }
+            reader.readAsArrayBuffer(selectedFile.slice(offset, offset + chunkSize));
           }
-          reader.readAsArrayBuffer(selectedFile.slice(offset, offset + chunkSize));
-        }
-        reader.onload = function(e) {
-          if (!conn.open) return;
-          conn.send({ type: "chunk", data: e.target.result });
-          offset += e.target.result.byteLength;
-          progressBar.style.width = ((offset / selectedFile.size) * 100).toFixed(1) + "%";
+          reader.onload = function(e) {
+            if (!conn.open) return;
+            conn.send({ type: "chunk", data: e.target.result });
+            offset += e.target.result.byteLength;
+            progressBar.style.width = ((offset / selectedFile.size) * 100).toFixed(1) + "%";
+            readNext();
+          };
           readNext();
-        };
-        readNext();
+        });
       });
     });
-  });
 
-  btnCopy.addEventListener("click", function() {
-    if (!currentLink) return;
-    navigator.clipboard.writeText(currentLink).then(function() {
-      btnCopy.textContent = "Tersalin"; setTimeout(function() { btnCopy.textContent = "Salin Link"; }, 1500);
+    btnCopy.addEventListener("click", function() {
+      if (!currentLink) return;
+      navigator.clipboard.writeText(currentLink).then(function() {
+        btnCopy.textContent = "Tersalin"; setTimeout(function() { btnCopy.textContent = "Salin Link"; }, 1500);
+      });
     });
-  });
 
+    // Logika Penerima di Halaman Utama
+    var linkInput = $("linkInput");
+    var btnHubungkan = $("btnHubungkan");
+    var statusPenerima = $("statusPenerima");
+    var progressWrapRecv = $("progressWrapRecv");
+    var progressBarRecv = $("progressBarRecv");
+    
+    btnHubungkan.addEventListener("click", function() {
+      var link = linkInput.value.trim();
+      if (!link || link.indexOf("#recv=") === -1) {
+        statusPenerima.className = "status err"; statusPenerima.textContent = "Link tidak valid."; return;
+      }
+      var senderId = link.split("#recv=")[1];
+      
+      btnHubungkan.disabled = true;
+      statusPenerima.className = "status"; statusPenerima.textContent = "Menghubungkan...";
+      prosesTransfer(senderId, statusPenerima, progressWrapRecv, progressBarRecv, btnHubungkan);
+    });
 
-  // ================= LOGIKA PENERIMA =================
-  var linkInput = $("linkInput");
-  var btnHubungkan = $("btnHubungkan");
-  var statusPenerima = $("statusPenerima");
-  var progressWrapRecv = $("progressWrapRecv");
-  var progressBarRecv = $("progressBarRecv");
-  
-  var recvPeer = null;
-  var conn = null;
-  var receivedChunks = [];
-  var receivedSize = 0;
-  var totalSize = 0;
-  var incomingMeta = null;
+    // Logika Scanner Kamera
+    var btnScan = $("btnScan");
+    var btnBatalScan = $("btnBatalScan");
+    var readerDiv = $("reader");
+    var penerimaInputGroup = $("penerimaInputGroup");
+    var html5QrcodeScanner = null;
 
-  btnHubungkan.addEventListener("click", function() {
-    var link = linkInput.value.trim();
-    if (!link || link.indexOf("#recv=") === -1) {
-      statusPenerima.className = "status err"; statusPenerima.textContent = "Link tidak valid."; return;
+    btnScan.addEventListener("click", function() {
+      penerimaInputGroup.classList.add("hidden");
+      readerDiv.style.display = "block";
+      btnBatalScan.classList.remove("hidden");
+
+      if (!html5QrcodeScanner) {
+        html5QrcodeScanner = new Html5Qrcode("reader");
+      }
+
+      html5QrcodeScanner.start(
+        { facingMode: "environment" },
+        { fps: 10, qrbox: { width: 250, height: 250 } },
+        function(decodedText) {
+          if (decodedText.indexOf("#recv=") !== -1) {
+            hentikanKamera();
+            linkInput.value = decodedText;
+            var senderId = decodedText.split("#recv=")[1];
+            btnHubungkan.disabled = true;
+            statusPenerima.className = "status"; statusPenerima.textContent = "Menghubungkan...";
+            prosesTransfer(senderId, statusPenerima, progressWrapRecv, progressBarRecv, btnHubungkan);
+          }
+        },
+        function(error) {}
+      ).catch(function(err) {
+        statusPenerima.className = "status err"; statusPenerima.textContent = "Gagal akses kamera.";
+        hentikanKamera();
+      });
+    });
+
+    btnBatalScan.addEventListener("click", hentikanKamera);
+
+    function hentikanKamera() {
+      if (html5QrcodeScanner && html5QrcodeScanner.isScanning) {
+        html5QrcodeScanner.stop().then(function() {
+          readerDiv.style.display = "none";
+          btnBatalScan.classList.add("hidden");
+          penerimaInputGroup.classList.remove("hidden");
+        });
+      } else {
+        readerDiv.style.display = "none";
+        btnBatalScan.classList.add("hidden");
+        penerimaInputGroup.classList.remove("hidden");
+      }
     }
-    var senderId = link.split("#recv=")[1];
-    mulaiUnduh(senderId);
-  });
+  }
 
-  function mulaiUnduh(senderId) {
-    btnHubungkan.disabled = true;
-    statusPenerima.className = "status"; statusPenerima.textContent = "Menghubungkan...";
+  // ================= LOGIKA PENERIMA KHUSUS (KLIK LINK) =================
+  function mulaiUnduhKhusus(senderId) {
+    var btn = $("btnUnduhLangsung");
+    var status = $("statusPenerimaKhusus");
+    var wrap = $("progressWrapRecvKhusus");
+    var bar = $("progressBarRecvKhusus");
 
-    recvPeer = new Peer();
+    btn.addEventListener("click", function() {
+      btn.disabled = true;
+      status.className = "status"; status.textContent = "Menghubungkan...";
+      prosesTransfer(senderId, status, wrap, bar, btn);
+    });
+  }
+
+  // ================= FUNGSI TRANSFER UNIVERSAL =================
+  function prosesTransfer(senderId, statusEl, wrapEl, barEl, btnEl) {
+    var recvPeer = new Peer();
+    var receivedChunks = [];
+    var receivedSize = 0;
+    var totalSize = 0;
+    var incomingMeta = null;
+
     recvPeer.on("open", function() {
-      conn = recvPeer.connect(senderId);
+      var conn = recvPeer.connect(senderId);
+      
       conn.on("open", function() {
-        statusPenerima.className = "status ok"; statusPenerima.textContent = "Terhubung. Menunggu data...";
+        statusEl.className = "status ok"; statusEl.textContent = "Terhubung. Menunggu data...";
       });
+      
       conn.on("data", function(data) {
         if (data.type === "meta") {
           incomingMeta = data; totalSize = data.size; receivedChunks = []; receivedSize = 0;
-          statusPenerima.textContent = "Menerima: " + data.name;
-          progressWrapRecv.style.display = "block"; progressBarRecv.style.width = "0%";
+          statusEl.textContent = "Menerima: " + data.name;
+          wrapEl.style.display = "block"; barEl.style.width = "0%";
         } else if (data.type === "chunk") {
           receivedChunks.push(data.data); receivedSize += data.data.byteLength;
-          if (totalSize > 0) progressBarRecv.style.width = ((receivedSize / totalSize) * 100).toFixed(1) + "%";
+          if (totalSize > 0) barEl.style.width = ((receivedSize / totalSize) * 100).toFixed(1) + "%";
         } else if (data.type === "done") {
           var blob = new Blob(receivedChunks);
           var url = URL.createObjectURL(blob);
@@ -362,63 +466,18 @@
           a.href = url; a.download = incomingMeta ? incomingMeta.name : "file";
           document.body.appendChild(a); a.click(); document.body.removeChild(a);
           setTimeout(function() { URL.revokeObjectURL(url); }, 10000);
-          progressBarRecv.style.width = "100%";
-          statusPenerima.className = "status ok"; statusPenerima.textContent = "Selesai diunduh!";
+          barEl.style.width = "100%";
+          statusEl.className = "status ok"; statusEl.textContent = "Selesai diunduh!";
         }
       });
     });
-  }
-
-  // ================= LOGIKA KAMERA SCANNER =================
-  var btnScan = $("btnScan");
-  var btnBatalScan = $("btnBatalScan");
-  var readerDiv = $("reader");
-  var penerimaInputGroup = $("penerimaInputGroup");
-  var html5QrcodeScanner = null;
-
-  btnScan.addEventListener("click", function() {
-    penerimaInputGroup.classList.add("hidden");
-    readerDiv.style.display = "block";
-    btnBatalScan.classList.remove("hidden");
-
-    if (!html5QrcodeScanner) {
-      html5QrcodeScanner = new Html5Qrcode("reader");
-    }
-
-    html5QrcodeScanner.start(
-      { facingMode: "environment" },
-      { fps: 10, qrbox: { width: 250, height: 250 } },
-      function(decodedText) {
-        if (decodedText.indexOf("#recv=") !== -1) {
-          hentikanKamera();
-          linkInput.value = decodedText;
-          var senderId = decodedText.split("#recv=")[1];
-          mulaiUnduh(senderId);
-        }
-      },
-      function(error) {}
-    ).catch(function(err) {
-      statusPenerima.className = "status err";
-      statusPenerima.textContent = "Gagal akses kamera: " + err;
-      hentikanKamera();
+    
+    recvPeer.on("error", function(err) {
+      statusEl.className = "status err"; statusEl.textContent = "Koneksi gagal: " + err.message;
+      if(btnEl) btnEl.disabled = false;
     });
-  });
-
-  btnBatalScan.addEventListener("click", hentikanKamera);
-
-  function hentikanKamera() {
-    if (html5QrcodeScanner && html5QrcodeScanner.isScanning) {
-      html5QrcodeScanner.stop().then(function() {
-        readerDiv.style.display = "none";
-        btnBatalScan.classList.add("hidden");
-        penerimaInputGroup.classList.remove("hidden");
-      });
-    } else {
-      readerDiv.style.display = "none";
-      btnBatalScan.classList.add("hidden");
-      penerimaInputGroup.classList.remove("hidden");
-    }
   }
+
 })();
 </script>
 </body>
