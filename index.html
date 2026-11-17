@@ -13,7 +13,7 @@
   body {
     margin: 0;
     min-height: 100vh;
-    background: #000000; /* Hitam pekat ala Apple OLED */
+    background: #000000;
     color: #f5f5f7;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     display: flex;
@@ -26,8 +26,8 @@
   .card {
     width: 100%;
     max-width: 480px;
-    background: #1c1c1e; /* Abu-abu gelap khas iOS */
-    border-radius: 28px; /* Sudut membulat besar */
+    background: #1c1c1e;
+    border-radius: 28px;
     padding: 32px 24px;
     box-shadow: 0 30px 60px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.05);
     border: 1px solid rgba(255,255,255,0.05);
@@ -44,7 +44,7 @@
     margin: 0 0 6px;
     color: #ffffff;
   }
-  .brand span { color: #0A84FF; } /* Biru khas Apple */
+  .brand span { color: #0A84FF; }
   .tagline { font-size: 13px; color: #8e8e93; margin: 0; font-weight: 500; }
 
   /* --- SEGMENTED CONTROL (TAB BAR) --- */
@@ -84,7 +84,7 @@
   #dropzone {
     border: 2px dashed #3a3a3c;
     border-radius: 18px;
-    padding: 40px 20px;
+    padding: 30px 20px;
     text-align: center;
     color: #8e8e93;
     font-size: 15px;
@@ -95,6 +95,25 @@
   }
   #dropzone.dragover { border-color: #0A84FF; background: rgba(10,132,255,0.1); color: #0A84FF; }
   #dropzone.hasfile { border-color: #30d158; background: rgba(48,209,88,0.1); color: #30d158; border-style: solid; }
+
+  /* --- TEKS PILIHAN FILE / FOLDER --- */
+  .pilihan-tambahan {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    margin-top: 12px;
+    font-size: 13px;
+  }
+  .pilihan-tambahan button {
+    background: none;
+    border: none;
+    color: #0A84FF;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 0;
+    font-size: 13px;
+  }
+  .pilihan-tambahan button:hover { text-decoration: underline; }
 
   /* --- INPUT & TOMBOL --- */
   input[type="text"] {
@@ -212,7 +231,17 @@
   <!-- TAB PENGIRIM -->
   <div id="tabKirim" class="tab-content active">
     <div id="dropzone">Ketuk untuk memilih file<br><span style="font-size:12px; opacity:0.7;">atau tarik dan lepas ke sini</span></div>
-    <input type="file" id="fileInput" class="hidden">
+    
+    <!-- Input Tersembunyi -->
+    <input type="file" id="fileInput" multiple class="hidden">
+    <input type="file" id="folderInput" webkitdirectory directory multiple class="hidden">
+    
+    <!-- Pilihan Tambahan -->
+    <div class="pilihan-tambahan">
+      <button id="btnPilihFile">Pilih File</button>
+      <button id="btnPilihFolder">Pilih Folder</button>
+    </div>
+
     <button id="btnBuat" class="btn-primary" style="margin-top: 16px;">Buat Link & QR Code</button>
 
     <div id="resultBox" class="hidden">
@@ -314,6 +343,9 @@
   function inisialisasiHalamanUtama() {
     var dropzone = $("dropzone");
     var fileInput = $("fileInput");
+    var folderInput = $("folderInput");
+    var btnPilihFile = $("btnPilihFile");
+    var btnPilihFolder = $("btnPilihFolder");
     var btnBuat = $("btnBuat");
     var resultBox = $("resultBox");
     var linkText = $("linkText");
@@ -323,31 +355,37 @@
     var progressBar = $("progressBar");
     var qrContainer = $("qrContainer");
 
-    var selectedFile = null;
+    var selectedFiles = []; // Array untuk menyimpan banyak file
     var peer = null;
     var chunkSize = 16 * 1024;
     var currentLink = "";
 
+    // Pemicu Input
     dropzone.addEventListener("click", function() { fileInput.click(); });
+    btnPilihFile.addEventListener("click", function(e) { e.stopPropagation(); fileInput.click(); });
+    btnPilihFolder.addEventListener("click", function(e) { e.stopPropagation(); folderInput.click(); });
+
+    // Drag & Drop
     dropzone.addEventListener("dragover", function(e) { e.preventDefault(); dropzone.classList.add("dragover"); });
     dropzone.addEventListener("dragleave", function() { dropzone.classList.remove("dragover"); });
     dropzone.addEventListener("drop", function(e) {
       e.preventDefault(); dropzone.classList.remove("dragover");
-      if (e.dataTransfer.files.length > 0) pickFile(e.dataTransfer.files[0]);
-    });
-    fileInput.addEventListener("change", function() {
-      if (fileInput.files.length > 0) pickFile(fileInput.files[0]);
+      if (e.dataTransfer.files.length > 0) handleFiles(e.dataTransfer.files);
     });
 
-    function pickFile(f) {
-      selectedFile = f;
-      dropzone.innerHTML = "<b>" + f.name + "</b><br><span style='font-size:12px;'>" + formatBytes(f.size) + "</span>";
+    fileInput.addEventListener("change", function() { if (fileInput.files.length > 0) handleFiles(fileInput.files); });
+    folderInput.addEventListener("change", function() { if (folderInput.files.length > 0) handleFiles(folderInput.files); });
+
+    function handleFiles(files) {
+      selectedFiles = Array.from(files);
+      var totalSize = selectedFiles.reduce(function(acc, f) { return acc + f.size; }, 0);
+      dropzone.innerHTML = "<b>" + selectedFiles.length + " File Terpilih</b><br><span style='font-size:12px;'>Total: " + formatBytes(totalSize) + "</span>";
       dropzone.classList.add("hasfile");
     }
 
     btnBuat.addEventListener("click", function() {
-      if (!selectedFile) {
-        statusPengirim.className = "status err"; statusPengirim.textContent = "Pilih file terlebih dahulu."; return;
+      if (selectedFiles.length === 0) {
+        statusPengirim.className = "status err"; statusPengirim.textContent = "Pilih file atau folder terlebih dahulu."; return;
       }
       btnBuat.disabled = true; btnBuat.textContent = "Menyiapkan...";
       qrContainer.classList.add("hidden");
@@ -369,29 +407,57 @@
 
       peer.on("connection", function(conn) {
         conn.on("open", function() {
-          conn.send({ type: "meta", name: selectedFile.name, size: selectedFile.size });
-          var offset = 0;
+          // 1. Kirim Metadata (Daftar File)
+          var metadata = selectedFiles.map(function(f) { return { name: f.name, size: f.size }; });
+          conn.send({ type: "meta_list", files: metadata });
+          
           progressWrap.style.display = "block"; progressBar.style.width = "0%";
-          statusPengirim.textContent = "Mengirim: " + selectedFile.name;
+          statusPengirim.textContent = "Mengirim: " + selectedFiles.length + " file...";
 
+          // 2. Kirim File Satu Per Satu
+          var currentFileIndex = 0;
+          var offset = 0;
           var reader = new FileReader();
-          function readNext() {
-            if (offset >= selectedFile.size) {
-              conn.send({ type: "done" });
+
+          function sendNextFile() {
+            if (currentFileIndex >= selectedFiles.length) {
+              conn.send({ type: "all_done" });
               progressBar.style.width = "100%";
-              statusPengirim.textContent = "Berhasil terkirim!";
+              statusPengirim.textContent = "Semua file berhasil terkirim!";
               return;
             }
-            reader.readAsArrayBuffer(selectedFile.slice(offset, offset + chunkSize));
+
+            var file = selectedFiles[currentFileIndex];
+            offset = 0;
+            statusPengirim.textContent = "Mengirim file " + (currentFileIndex + 1) + " dari " + selectedFiles.length + ": " + file.name;
+            conn.send({ type: "file_start", index: currentFileIndex });
+
+            function readNextChunk() {
+              if (offset >= file.size) {
+                conn.send({ type: "file_done" });
+                currentFileIndex++;
+                sendNextFile();
+                return;
+              }
+              reader.readAsArrayBuffer(file.slice(offset, offset + chunkSize));
+            }
+
+            reader.onload = function(e) {
+              if (!conn.open) return;
+              conn.send({ type: "chunk", data: e.target.result });
+              offset += e.target.result.byteLength;
+              
+              // Hitung progress keseluruhan
+              var totalSent = selectedFiles.slice(0, currentFileIndex).reduce(function(acc, f) { return acc + f.size; }, 0) + offset;
+              var totalSize = selectedFiles.reduce(function(acc, f) { return acc + f.size; }, 0);
+              progressBar.style.width = ((totalSent / totalSize) * 100).toFixed(1) + "%";
+
+              readNextChunk();
+            };
+            readNextChunk();
           }
-          reader.onload = function(e) {
-            if (!conn.open) return;
-            conn.send({ type: "chunk", data: e.target.result });
-            offset += e.target.result.byteLength;
-            progressBar.style.width = ((offset / selectedFile.size) * 100).toFixed(1) + "%";
-            readNext();
-          };
-          readNext();
+
+          sendNextFile();
         });
       });
     });
@@ -492,10 +558,15 @@
   // ================= FUNGSI TRANSFER UNIVERSAL =================
   function prosesTransfer(senderId, statusEl, wrapEl, barEl, btnEl) {
     var recvPeer = new Peer();
+    
+    // Status Penerima
+    var fileList = [];
+    var currentFileIndex = 0;
     var receivedChunks = [];
     var receivedSize = 0;
-    var totalSize = 0;
-    var incomingMeta = null;
+    var currentFileMeta = null;
+    var totalOverallSize = 0;
+    var totalReceivedOverallSize = 0;
 
     recvPeer.on("open", function() {
       var conn = recvPeer.connect(senderId);
@@ -505,22 +576,50 @@
       });
       
       conn.on("data", function(data) {
-        if (data.type === "meta") {
-          incomingMeta = data; totalSize = data.size; receivedChunks = []; receivedSize = 0;
-          statusEl.textContent = "Menerima: " + data.name;
+        if (data.type === "meta_list") {
+          fileList = data.files;
+          totalOverallSize = fileList.reduce(function(acc, f) { return acc + f.size; }, 0);
+          totalReceivedOverallSize = 0;
+          currentFileIndex = 0;
+          statusEl.textContent = "Menerima " + fileList.length + " file...";
           wrapEl.style.display = "block"; barEl.style.width = "0%";
-        } else if (data.type === "chunk") {
-          receivedChunks.push(data.data); receivedSize += data.data.byteLength;
-          if (totalSize > 0) barEl.style.width = ((receivedSize / totalSize) * 100).toFixed(1) + "%";
-        } else if (data.type === "done") {
+        } 
+        
+        else if (data.type === "file_start") {
+          currentFileIndex = data.index;
+          currentFileMeta = fileList[currentFileIndex];
+          receivedChunks = [];
+          receivedSize = 0;
+          statusEl.textContent = "Mengunduh file " + (currentFileIndex + 1) + " dari " + fileList.length + ": " + currentFileMeta.name;
+        } 
+        
+        else if (data.type === "chunk") {
+          receivedChunks.push(data.data); 
+          receivedSize += data.data.byteLength;
+          
+          var totalProgress = ((totalReceivedOverallSize + receivedSize) / totalOverallSize) * 100;
+          barEl.style.width = totalProgress.toFixed(1) + "%";
+        } 
+        
+        else if (data.type === "file_done") {
+          // Rakit dan unduh file ini
           var blob = new Blob(receivedChunks);
           var url = URL.createObjectURL(blob);
           var a = document.createElement("a");
-          a.href = url; a.download = incomingMeta ? incomingMeta.name : "file";
+          a.href = url; a.download = currentFileMeta ? currentFileMeta.name : "file";
           document.body.appendChild(a); a.click(); document.body.removeChild(a);
           setTimeout(function() { URL.revokeObjectURL(url); }, 10000);
+          
+          // Bersihkan memori untuk file berikutnya
+          totalReceivedOverallSize += currentFileMeta.size;
+          receivedChunks = [];
+          receivedSize = 0;
+        } 
+        
+        else if (data.type === "all_done") {
           barEl.style.width = "100%";
-          statusEl.className = "status ok"; statusEl.textContent = "Berhasil diunduh!";
+          statusEl.className = "status ok"; 
+          statusEl.textContent = "Semua " + fileList.length + " file berhasil diunduh!";
         }
       });
     });
