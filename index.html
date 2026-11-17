@@ -221,21 +221,17 @@
     <p class="tagline">Tanpa akun. Tanpa server. Cepat & Aman.</p>
   </div>
 
-  <!-- Tab Bar -->
   <div class="segmented-control">
     <button id="tabKirimBtn" class="active" onclick="switchTab('kirim')">Kirim</button>
     <button id="tabTerimaBtn" onclick="switchTab('terima')">Terima</button>
   </div>
 
-  <!-- TAB PENGIRIM -->
   <div id="tabKirim" class="tab-content active">
     <div id="dropzone">Ketuk untuk memilih banyak file<br><span style="font-size:12px; opacity:0.7;">atau tarik dan lepas ke sini</span></div>
     
-    <!-- Input Tersembunyi -->
     <input type="file" id="fileInput" multiple class="hidden">
     <input type="file" id="folderInput" webkitdirectory directory multiple class="hidden">
 
-    <!-- Tautan Folder Minimalis -->
     <div class="folder-link-container">
       <button id="btnPilihFolder">Atau pilih satu folder utuh</button>
     </div>
@@ -259,7 +255,6 @@
     <div id="progressWrap" class="progress-wrapper"><div id="progressBar" class="progress-bar"></div></div>
   </div>
 
-  <!-- TAB PENERIMA -->
   <div id="tabTerima" class="tab-content">
     <p style="font-size: 13px; color: #8e8e93; margin: 0 0 16px 0; text-align: center;">Tempel link dari pengirim atau pindai QR.</p>
     
@@ -279,9 +274,6 @@
   <p class="credit">Created by Bustami_Atmadja x DeepSeek</p>
 </div>
 
-<!-- ========================================== -->
-<!-- TAMPILAN 2: HALAMAN PENERIMA KHUSUS (KLIK LINK) -->
-<!-- ========================================== -->
 <div class="card card-receiver hidden" id="cardPenerimaKhusus">
   <div class="header" style="margin-bottom: 32px;">
     <p class="brand">Armadilo <span>Post</span></p>
@@ -300,7 +292,6 @@
 (function() {
   "use strict";
 
-  // --- FUNGSI PINDAH TAB ---
   window.switchTab = function(tab) {
     if (tab === 'kirim') {
       document.getElementById('tabKirimBtn').classList.add('active');
@@ -326,7 +317,6 @@
   var hash = window.location.hash.replace(/^#/, "");
   var isLinkPenerima = hash.indexOf("recv=") === 0;
 
-  // LOGIKA TAMPILAN AWAL
   if (isLinkPenerima) {
     $("cardUtama").classList.add("hidden");
     $("cardPenerimaKhusus").classList.remove("hidden");
@@ -337,7 +327,6 @@
     inisialisasiHalamanUtama();
   }
 
-  // ================= LOGIKA HALAMAN UTAMA =================
   function inisialisasiHalamanUtama() {
     var dropzone = $("dropzone");
     var fileInput = $("fileInput");
@@ -354,15 +343,13 @@
 
     var selectedFiles = [];
     var peer = null;
-    var chunkSize = 16 * 1024;
+    // PERBAIKAN: Ukuran chunk diperkecil dari 16KB menjadi 8KB agar lebih stabil
+    var chunkSize = 8 * 1024; 
     var currentLink = "";
 
-    // Pemicu Input (Klik = Pilih Banyak File)
     dropzone.addEventListener("click", function() { fileInput.click(); });
-    // Pemicu Folder
     btnPilihFolder.addEventListener("click", function(e) { e.stopPropagation(); folderInput.click(); });
 
-    // Drag & Drop (Mendeteksi File atau Folder)
     dropzone.addEventListener("dragover", function(e) { e.preventDefault(); dropzone.classList.add("dragover"); });
     dropzone.addEventListener("dragleave", function() { dropzone.classList.remove("dragover"); });
     dropzone.addEventListener("drop", function(e) {
@@ -488,7 +475,8 @@
               var totalSize = selectedFiles.reduce(function(acc, f) { return acc + f.size; }, 0);
               progressBar.style.width = ((totalSent / totalSize) * 100).toFixed(1) + "%";
 
-              readNextChunk();
+              // PERBAIKAN: Tambahkan jeda 2 milidetik (setTimeout) sebelum mengirim chunk berikutnya
+              setTimeout(readNextChunk, 2);
             };
             readNextChunk();
           }
@@ -505,7 +493,6 @@
       });
     });
 
-    // PENERIMA DI TAB UTAMA
     var linkInput = $("linkInput");
     var btnHubungkan = $("btnHubungkan");
     var statusPenerima = $("statusPenerima");
@@ -524,7 +511,6 @@
       prosesTransfer(senderId, statusPenerima, progressWrapRecv, progressBarRecv, btnHubungkan);
     });
 
-    // SCANNER KAMERA
     var btnScan = $("btnScan");
     var btnBatalScan = $("btnBatalScan");
     var readerDiv = $("reader");
@@ -577,7 +563,6 @@
     }
   }
 
-  // ================= LOGIKA PENERIMA KHUSUS (KLIK LINK) =================
   function mulaiUnduhKhusus(senderId) {
     var btn = $("btnUnduhLangsung");
     var status = $("statusPenerimaKhusus");
@@ -591,7 +576,6 @@
     });
   }
 
-  // ================= FUNGSI TRANSFER UNIVERSAL =================
   function prosesTransfer(senderId, statusEl, wrapEl, barEl, btnEl) {
     var recvPeer = new Peer();
     
