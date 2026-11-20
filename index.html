@@ -196,8 +196,10 @@
   .status.ok { color: #30d158; }
   .status.err { color: #ff453a; }
 
-  .progress-wrapper { display: none; margin-top: 20px; height: 8px; background: #2c2c2e; border-radius: 10px; overflow: hidden; }
+  .progress-wrapper { display: none; margin-top: 20px; }
+  .progress-track { height: 8px; background: #2c2c2e; border-radius: 10px; overflow: hidden; }
   .progress-bar { height: 100%; width: 0%; background: linear-gradient(90deg, #0A84FF, #30d158); transition: width 0.2s ease; border-radius: 10px; }
+  .speed-text { text-align: right; font-size: 11px; color: #8e8e93; margin-top: 6px; font-weight: 600; font-variant-numeric: tabular-nums; }
 
   /* --- KAMERA SCANNER --- */
   #reader { width: 100%; border-radius: 16px; overflow: hidden; margin-top: 16px; display: none; background: #000; border: 2px solid #2c2c2e; }
@@ -252,7 +254,10 @@
       <div class="status" id="statusPengirim"></div>
     </div>
 
-    <div id="progressWrap" class="progress-wrapper"><div id="progressBar" class="progress-bar"></div></div>
+    <div id="progressWrap" class="progress-wrapper">
+      <div class="progress-track"><div id="progressBar" class="progress-bar"></div></div>
+      <div id="speedPengirim" class="speed-text hidden">0 MB/s</div>
+    </div>
   </div>
 
   <div id="tabTerima" class="tab-content">
@@ -268,12 +273,18 @@
     <button class="btn-secondary hidden" id="btnBatalScan" style="color: #ff453a; background: rgba(255,69,58,0.1);">Batal Pindai</button>
 
     <div id="statusPenerima" class="status"></div>
-    <div id="progressWrapRecv" class="progress-wrapper"><div id="progressBarRecv" class="progress-bar"></div></div>
+    <div id="progressWrapRecv" class="progress-wrapper">
+      <div class="progress-track"><div id="progressBarRecv" class="progress-bar"></div></div>
+      <div id="speedPenerima" class="speed-text hidden">0 MB/s</div>
+    </div>
   </div>
 
   <p class="credit">Created by Bustami_Atmadja x DeepSeek</p>
 </div>
 
+<!-- ========================================== -->
+<!-- TAMPILAN 2: HALAMAN PENERIMA KHUSUS (KLIK LINK) -->
+<!-- ========================================== -->
 <div class="card card-receiver hidden" id="cardPenerimaKhusus">
   <div class="header" style="margin-bottom: 32px;">
     <p class="brand">Armadilo <span>Post</span></p>
@@ -283,7 +294,10 @@
   <button id="btnUnduhLangsung" class="btn-primary" style="padding: 18px; font-size: 17px;">Unduh File Sekarang</button>
 
   <div id="statusPenerimaKhusus" class="status" style="margin-top: 20px;"></div>
-  <div id="progressWrapRecvKhusus" class="progress-wrapper"><div id="progressBarRecvKhusus" class="progress-bar"></div></div>
+  <div id="progressWrapRecvKhusus" class="progress-wrapper">
+    <div class="progress-track"><div id="progressBarRecvKhusus" class="progress-bar"></div></div>
+    <div id="speedPenerimaKhusus" class="speed-text hidden">0 MB/s</div>
+  </div>
   
   <p class="credit" style="margin-top: 40px;">Created by Bustami_Atmadja x DeepSeek</p>
 </div>
@@ -312,6 +326,14 @@
     if (b < 1073741824) return (b/1048576).toFixed(1) + " MB";
     return (b/1073741824).toFixed(2) + " GB";
   }
+  
+  // Fungsi untuk menghitung kecepatan (MB/s)
+  function hitungKecepatan(bytes, waktuMs) {
+    if (waktuMs === 0) return "0 MB/s";
+    var mbps = (bytes / 1048576) / (waktuMs / 1000);
+    return mbps.toFixed(2) + " MB/s";
+  }
+
   function $(id) { return document.getElementById(id); }
 
   var hash = window.location.hash.replace(/^#/, "");
@@ -339,11 +361,11 @@
     var statusPengirim = $("statusPengirim");
     var progressWrap = $("progressWrap");
     var progressBar = $("progressBar");
+    var speedPengirim = $("speedPengirim");
     var qrContainer = $("qrContainer");
 
     var selectedFiles = [];
     var peer = null;
-    // PERBAIKAN: Ukuran chunk diperkecil dari 16KB menjadi 8KB agar lebih stabil
     var chunkSize = 8 * 1024; 
     var currentLink = "";
 
@@ -436,18 +458,24 @@
           var metadata = selectedFiles.map(function(f) { return { name: f.name, size: f.size }; });
           conn.send({ type: "meta_list", files: metadata });
           
-          progressWrap.style.display = "block"; progressBar.style.width = "0%";
+          progressWrap.style.display = "block"; 
+          progressBar.style.width = "0%";
+          speedPengirim.classList.remove("hidden");
+          speedPengirim.textContent = "0 MB/s";
           statusPengirim.textContent = "Mengirim: " + selectedFiles.length + " file...";
 
           var currentFileIndex = 0;
           var offset = 0;
           var reader = new FileReader();
+          var startTime = 0;
+          var totalSize = selectedFiles.reduce(function(acc, f) { return acc + f.size; }, 0);
 
           function sendNextFile() {
             if (currentFileIndex >= selectedFiles.length) {
               conn.send({ type: "all_done" });
               progressBar.style.width = "100%";
               statusPengirim.textContent = "Semua file berhasil terkirim!";
+              speedPengirim.textContent = "Selesai";
               return;
             }
 
@@ -463,6 +491,9 @@
                 sendNextFile();
                 return;
               }
+              
+              if (offset === 0) startTime = Date.now(); // Mulai hitung waktu di file baru
+
               reader.readAsArrayBuffer(file.slice(offset, offset + chunkSize));
             }
 
@@ -472,10 +503,14 @@
               offset += e.target.result.byteLength;
               
               var totalSent = selectedFiles.slice(0, currentFileIndex).reduce(function(acc, f) { return acc + f.size; }, 0) + offset;
-              var totalSize = selectedFiles.reduce(function(acc, f) { return acc + f.size; }, 0);
               progressBar.style.width = ((totalSent / totalSize) * 100).toFixed(1) + "%";
 
-              // PERBAIKAN: Tambahkan jeda 2 milidetik (setTimeout) sebelum mengirim chunk berikutnya
+              // Hitung kecepatan berdasarkan waktu sejak file ini mulai dikirim
+              var elapsed = Date.now() - startTime;
+              if (elapsed > 500) { // Perbarui teks kecepatan setiap 0.5 detik agar tidak berkedip
+                speedPengirim.textContent = hitungKecepatan(offset, elapsed);
+              }
+
               setTimeout(readNextChunk, 2);
             };
             readNextChunk();
@@ -498,6 +533,7 @@
     var statusPenerima = $("statusPenerima");
     var progressWrapRecv = $("progressWrapRecv");
     var progressBarRecv = $("progressBarRecv");
+    var speedPenerima = $("speedPenerima");
     
     btnHubungkan.addEventListener("click", function() {
       var link = linkInput.value.trim();
@@ -508,7 +544,7 @@
       
       btnHubungkan.disabled = true;
       statusPenerima.className = "status"; statusPenerima.textContent = "Menghubungkan...";
-      prosesTransfer(senderId, statusPenerima, progressWrapRecv, progressBarRecv, btnHubungkan);
+      prosesTransfer(senderId, statusPenerima, progressWrapRecv, progressBarRecv, speedPenerima, btnHubungkan);
     });
 
     var btnScan = $("btnScan");
@@ -536,7 +572,7 @@
             var senderId = decodedText.split("#recv=")[1];
             btnHubungkan.disabled = true;
             statusPenerima.className = "status"; statusPenerima.textContent = "Menghubungkan...";
-            prosesTransfer(senderId, statusPenerima, progressWrapRecv, progressBarRecv, btnHubungkan);
+            prosesTransfer(senderId, statusPenerima, progressWrapRecv, progressBarRecv, speedPenerima, btnHubungkan);
           }
         },
         function(error) {}
@@ -568,15 +604,16 @@
     var status = $("statusPenerimaKhusus");
     var wrap = $("progressWrapRecvKhusus");
     var bar = $("progressBarRecvKhusus");
+    var speed = $("speedPenerimaKhusus");
 
     btn.addEventListener("click", function() {
       btn.disabled = true;
       status.className = "status"; status.textContent = "Menghubungkan...";
-      prosesTransfer(senderId, status, wrap, bar, btn);
+      prosesTransfer(senderId, status, wrap, bar, speed, btn);
     });
   }
 
-  function prosesTransfer(senderId, statusEl, wrapEl, barEl, btnEl) {
+  function prosesTransfer(senderId, statusEl, wrapEl, barEl, speedEl, btnEl) {
     var recvPeer = new Peer();
     
     var fileList = [];
@@ -586,6 +623,7 @@
     var currentFileMeta = null;
     var totalOverallSize = 0;
     var totalReceivedOverallSize = 0;
+    var startTime = 0;
 
     recvPeer.on("open", function() {
       var conn = recvPeer.connect(senderId);
@@ -601,7 +639,10 @@
           totalReceivedOverallSize = 0;
           currentFileIndex = 0;
           statusEl.textContent = "Menerima " + fileList.length + " file...";
-          wrapEl.style.display = "block"; barEl.style.width = "0%";
+          wrapEl.style.display = "block"; 
+          barEl.style.width = "0%";
+          speedEl.classList.remove("hidden");
+          speedEl.textContent = "0 MB/s";
         } 
         
         else if (data.type === "file_start") {
@@ -609,6 +650,7 @@
           currentFileMeta = fileList[currentFileIndex];
           receivedChunks = [];
           receivedSize = 0;
+          startTime = Date.now(); // Mulai hitung waktu terima di file baru
           statusEl.textContent = "Mengunduh file " + (currentFileIndex + 1) + " dari " + fileList.length + ": " + currentFileMeta.name;
         } 
         
@@ -618,6 +660,12 @@
           
           var totalProgress = ((totalReceivedOverallSize + receivedSize) / totalOverallSize) * 100;
           barEl.style.width = totalProgress.toFixed(1) + "%";
+
+          // Hitung kecepatan terima
+          var elapsed = Date.now() - startTime;
+          if (elapsed > 500) {
+            speedEl.textContent = hitungKecepatan(receivedSize, elapsed);
+          }
         } 
         
         else if (data.type === "file_done") {
@@ -637,6 +685,7 @@
           barEl.style.width = "100%";
           statusEl.className = "status ok"; 
           statusEl.textContent = "Semua " + fileList.length + " file berhasil diunduh!";
+          speedEl.textContent = "Selesai";
         }
       });
     });
