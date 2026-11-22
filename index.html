@@ -2,214 +2,341 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Armadilo Post</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="color-scheme" content="dark light">
+<title>Armadilo Post — Kirim File Tanpa Server</title>
 <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
 <style>
-  /* --- DASAR & RESET --- */
-  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  /* ==================== DESIGN TOKENS ==================== */
+  :root {
+    --bg-body: #000000;
+    --bg-card: #1c1c1e;
+    --bg-input: #2c2c2e;
+    --bg-input-hover: #3a3a3c;
+    --bg-segment: #2c2c2e;
+    --bg-segment-active: #636366;
+    
+    --tx-primary: #f5f5f7;
+    --tx-secondary: #a1a1a6; /* Ditingkatkan kontrasnya (WCAG AA) */
+    --tx-muted: #8e8e93;
+    --tx-credit: #636366;
+    
+    --accent: #0A84FF;
+    --accent-hover: #0070e0;
+    --success: #30d158;
+    --danger: #ff453a;
+    
+    --border-color: rgba(255,255,255,0.08);
+    --shadow-card: 0 30px 60px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.05);
+    
+    --radius-card: 28px;
+    --radius-lg: 18px;
+    --radius-md: 14px;
+    --radius-sm: 8px;
+    
+    --dur-fast: 150ms;
+    --dur-med: 250ms;
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  /* Light Mode Support */
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg-body: #f2f2f7;
+      --bg-card: #ffffff;
+      --bg-input: #f2f2f7;
+      --bg-input-hover: #e5e5ea;
+      --bg-segment: #e5e5ea;
+      --bg-segment-active: #ffffff;
+      
+      --tx-primary: #0f172a;
+      --tx-secondary: #475569;
+      --tx-muted: #64748b;
+      --tx-credit: #94a3b8;
+      
+      --border-color: rgba(0,0,0,0.08);
+      --shadow-card: 0 10px 30px rgba(0,0,0,0.08);
+    }
+  }
+
+  /* ==================== RESET ==================== */
+  *, *::before, *::after { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   body {
     margin: 0;
     min-height: 100vh;
-    background: #000000;
-    color: #f5f5f7;
+    min-height: 100dvh;
+    background: var(--bg-body);
+    color: var(--tx-primary);
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 20px;
+    transition: background-color var(--dur-med) ease, color var(--dur-med) ease;
+  }
+  [hidden] { display: none !important; }
+  .hidden { display: none !important; }
+
+  /* Accessibility */
+  .sr-only {
+    position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+  }
+  button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
   }
 
-  /* --- KARTU UTAMA --- */
+  /* SVG icon helper */
+  .icon { width: 20px; height: 20px; flex-shrink: 0; display: inline-block; vertical-align: middle; }
+  .icon-sm { width: 16px; height: 16px; }
+
+  /* ==================== CARD ==================== */
   .card {
     width: 100%;
     max-width: 480px;
-    background: #1c1c1e;
-    border-radius: 28px;
-    padding: 32px 24px;
-    box-shadow: 0 30px 60px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.05);
-    border: 1px solid rgba(255,255,255,0.05);
+    background: var(--bg-card);
+    border-radius: var(--radius-card);
+    padding: 32px 24px calc(32px + env(safe-area-inset-bottom, 0px));
+    box-shadow: var(--shadow-card);
+    border: 1px solid var(--border-color);
     position: relative;
     overflow: hidden;
+    transition: background-color var(--dur-med) ease;
   }
+  .card-receiver { max-width: 400px; }
 
-  /* --- HEADER --- */
+  /* ==================== HEADER ==================== */
   .header { text-align: center; margin-bottom: 28px; }
   .brand {
-    font-size: 26px;
-    font-weight: 800;
-    letter-spacing: -0.5px;
-    margin: 0 0 6px;
-    color: #ffffff;
+    font-size: 26px; font-weight: 800; letter-spacing: -0.5px;
+    margin: 0 0 6px; color: var(--tx-primary);
   }
-  .brand span { color: #0A84FF; }
-  .tagline { font-size: 13px; color: #8e8e93; margin: 0; font-weight: 500; }
+  .brand span { color: var(--accent); }
+  .tagline { font-size: 13px; color: var(--tx-secondary); margin: 0; font-weight: 500; }
 
-  /* --- SEGMENTED CONTROL (TAB BAR) --- */
+  /* ==================== TABS ==================== */
   .segmented-control {
-    display: flex;
-    background: #2c2c2e;
-    border-radius: 12px;
-    padding: 4px;
-    margin-bottom: 24px;
-    position: relative;
+    display: flex; background: var(--bg-segment);
+    border-radius: var(--radius-md); padding: 4px;
+    margin-bottom: 24px; position: relative;
   }
   .segmented-control button {
-    flex: 1;
-    padding: 10px 0;
-    border: none;
-    background: transparent;
-    color: #8e8e93;
-    font-size: 14px;
-    font-weight: 600;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    z-index: 1;
+    flex: 1; padding: 12px 0; border: none; background: transparent;
+    color: var(--tx-secondary); font-size: 14px; font-weight: 600;
+    border-radius: var(--radius-sm); cursor: pointer;
+    transition: all var(--dur-fast) ease; z-index: 1;
+    min-height: 44px; display: flex; align-items: center; justify-content: center; gap: 6px;
   }
   .segmented-control button.active {
-    background: #636366;
-    color: #ffffff;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    background: var(--bg-segment-active); color: var(--tx-primary);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  }
+  @media (prefers-color-scheme: dark) {
+    .segmented-control button.active { color: #ffffff; }
   }
 
-  /* --- WADAH KONTEN --- */
-  .tab-content { display: none; animation: fadeIn 0.3s ease; }
+  /* ==================== TAB CONTENT ==================== */
+  .tab-content { display: none; animation: fadeIn var(--dur-med) var(--ease-out); }
   .tab-content.active { display: block; }
-  @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(5px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
 
-  /* --- DROPZONE --- */
+  /* ==================== DROPZONE ==================== */
   #dropzone {
-    border: 2px dashed #3a3a3c;
-    border-radius: 18px;
+    border: 2px dashed var(--border-color);
+    border-radius: var(--radius-lg);
     padding: 35px 20px;
     text-align: center;
-    color: #8e8e93;
+    color: var(--tx-secondary);
     font-size: 15px;
     cursor: pointer;
-    transition: all 0.2s;
-    background: rgba(255,255,255,0.02);
+    transition: all var(--dur-fast) ease;
+    background: rgba(128,128,128,0.04);
     font-weight: 500;
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    min-height: 140px;
+    justify-content: center;
   }
-  #dropzone.dragover { border-color: #0A84FF; background: rgba(10,132,255,0.1); color: #0A84FF; }
-  #dropzone.hasfile { border-color: #30d158; background: rgba(48,209,88,0.1); color: #30d158; border-style: solid; }
+  #dropzone:hover, #dropzone:focus-visible {
+    border-color: var(--accent);
+    background: rgba(10,132,255,0.08);
+    color: var(--accent);
+  }
+  #dropzone.dragover { border-color: var(--accent); background: rgba(10,132,255,0.12); color: var(--accent); }
+  #dropzone.hasfile { border-color: var(--success); background: rgba(48,209,88,0.1); color: var(--success); border-style: solid; }
 
-  /* --- TAUTAN FOLDER --- */
-  .folder-link-container {
-    text-align: center;
-    margin-top: 12px;
-  }
+  /* ==================== FOLDER LINK ==================== */
+  .folder-link-container { text-align: center; margin-top: 12px; }
   .folder-link-container button {
-    background: none;
-    border: none;
-    color: #0A84FF;
-    font-weight: 600;
-    font-size: 13px;
-    cursor: pointer;
-    padding: 0;
+    background: none; border: none;
+    color: var(--accent); font-weight: 600; font-size: 13px;
+    cursor: pointer; padding: 12px 16px;
     text-decoration: none;
-    transition: opacity 0.2s;
+    min-height: 44px;
+    border-radius: var(--radius-sm);
+    transition: opacity var(--dur-fast), background-color var(--dur-fast);
+    display: inline-flex; align-items: center; gap: 6px;
   }
-  .folder-link-container button:hover { opacity: 0.8; text-decoration: underline; }
+  .folder-link-container button:hover { opacity: 0.85; background: rgba(10,132,255,0.1); }
 
-  /* --- INPUT & TOMBOL --- */
+  /* ==================== INPUTS ==================== */
   input[type="text"] {
     width: 100%;
     padding: 16px;
-    background: #2c2c2e;
+    background: var(--bg-input);
     border: 1px solid transparent;
-    border-radius: 14px;
-    color: #ffffff;
-    font-size: 15px;
+    border-radius: var(--radius-md);
+    color: var(--tx-primary);
+    font-size: 16px; /* 16px prevents iOS auto-zoom */
     outline: none;
-    transition: all 0.2s;
+    transition: all var(--dur-fast);
     margin-bottom: 16px;
   }
-  input[type="text"]:focus { border-color: #0A84FF; background: #3a3a3c; }
-  input[type="text"]::placeholder { color: #636366; }
+  input[type="text"]:focus { border-color: var(--accent); background: var(--bg-input-hover); }
+  input[type="text"]::placeholder { color: var(--tx-muted); }
 
-  button.btn-primary {
+  /* ==================== BUTTONS ==================== */
+  button.btn-primary, button.btn-secondary {
     width: 100%;
     padding: 16px;
     border: none;
-    border-radius: 14px;
-    background: #0A84FF;
-    color: #ffffff;
+    border-radius: var(--radius-md);
     font-size: 16px;
     font-weight: 700;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all var(--dur-fast) ease;
+    min-height: 48px;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  button.btn-primary {
+    background: var(--accent);
+    color: #ffffff;
     box-shadow: 0 4px 12px rgba(10,132,255,0.3);
   }
-  button.btn-primary:hover { background: #0070e0; transform: translateY(-1px); }
+  @media (hover: hover) {
+    button.btn-primary:hover { background: var(--accent-hover); transform: translateY(-1px); }
+  }
   button.btn-primary:active { transform: translateY(1px); }
-  button.btn-primary:disabled { background: #2c2c2e; color: #636366; box-shadow: none; cursor: not-allowed; transform: none; }
+  button.btn-primary:disabled {
+    background: var(--bg-input); color: var(--tx-muted);
+    box-shadow: none; cursor: not-allowed; transform: none;
+  }
 
   button.btn-secondary {
-    width: 100%;
-    padding: 14px;
-    border: none;
-    border-radius: 14px;
-    background: #2c2c2e;
-    color: #f5f5f7;
+    background: var(--bg-input);
+    color: var(--tx-primary);
     font-size: 15px;
     font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s;
     margin-top: 12px;
   }
-  button.btn-secondary:hover { background: #3a3a3c; }
-  button.btn-secondary:active { background: #48484a; }
+  @media (hover: hover) {
+    button.btn-secondary:hover { background: var(--bg-input-hover); }
+  }
+  button.btn-secondary:active { background: var(--bg-input-hover); }
 
-  /* --- KOTAK LINK & QR --- */
+  /* Spinner */
+  .spinner {
+    width: 18px; height: 18px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: #ffffff;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    display: inline-block;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ==================== LINK BOX ==================== */
   .link-box {
     margin-top: 16px;
     padding: 14px;
-    background: #2c2c2e;
-    border-radius: 14px;
+    background: var(--bg-input);
+    border-radius: var(--radius-md);
     font-size: 12px;
-    color: #8e8e93;
+    color: var(--tx-secondary);
     word-break: break-all;
     line-height: 1.6;
-    border: 1px solid rgba(255,255,255,0.05);
+    border: 1px solid var(--border-color);
   }
-  .link-box b { color: #f5f5f7; font-size: 13px; }
-  #linkText { display: block; margin-top: 8px; color: #0A84FF; user-select: all; font-weight: 600; }
-  
+  .link-box b { color: var(--tx-primary); font-size: 13px; }
+  #linkText { display: block; margin-top: 8px; color: var(--accent); user-select: all; font-weight: 600; }
+
+  /* ==================== QR ==================== */
   .qr-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    margin-top: 20px;
-    padding: 16px;
-    background: #ffffff;
-    border-radius: 16px;
+    display: flex; flex-direction: column; align-items: center;
+    margin-top: 20px; padding: 16px;
+    background: #ffffff; border-radius: var(--radius-lg);
     box-shadow: 0 4px 12px rgba(0,0,0,0.1);
   }
   .qr-container p { margin: 0 0 12px 0; font-size: 12px; color: #333; font-weight: 700; }
   #qrcode { display: flex; justify-content: center; }
 
-  /* --- STATUS & PROGRESS BAR --- */
-  .status { margin-top: 16px; font-size: 13px; color: #8e8e93; line-height: 1.5; word-break: break-word; text-align: center; font-weight: 500;}
-  .status.ok { color: #30d158; }
-  .status.err { color: #ff453a; }
+  /* ==================== STATUS ==================== */
+  .status {
+    margin-top: 16px; font-size: 13px; color: var(--tx-secondary);
+    line-height: 1.5; word-break: break-word; text-align: center; font-weight: 500;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+  }
+  .status.ok { color: var(--success); }
+  .status.err { color: var(--danger); }
 
+  /* ==================== PROGRESS ==================== */
   .progress-wrapper { display: none; margin-top: 20px; }
-  .progress-track { height: 8px; background: #2c2c2e; border-radius: 10px; overflow: hidden; }
-  .progress-bar { height: 100%; width: 0%; background: linear-gradient(90deg, #0A84FF, #30d158); transition: width 0.2s ease; border-radius: 10px; }
-  .speed-text { text-align: right; font-size: 11px; color: #8e8e93; margin-top: 6px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .progress-track { height: 8px; background: var(--bg-input); border-radius: 10px; overflow: hidden; }
+  .progress-bar {
+    height: 100%; width: 0%;
+    background: linear-gradient(90deg, var(--accent), var(--success));
+    transition: width 0.2s ease; border-radius: 10px;
+  }
+  .progress-meta {
+    display: flex; justify-content: space-between;
+    font-size: 11px; color: var(--tx-secondary);
+    margin-top: 6px; font-weight: 600; font-variant-numeric: tabular-nums;
+  }
 
-  /* --- KAMERA SCANNER --- */
-  #reader { width: 100%; border-radius: 16px; overflow: hidden; margin-top: 16px; display: none; background: #000; border: 2px solid #2c2c2e; }
-  #reader video { border-radius: 16px; object-fit: cover; }
+  /* ==================== CAMERA SCANNER ==================== */
+  #reader { width: 100%; border-radius: var(--radius-lg); overflow: hidden; margin-top: 16px; display: none; background: #000; border: 2px solid var(--bg-input); }
+  #reader video { border-radius: var(--radius-lg); object-fit: cover; }
 
-  .credit { margin-top: 28px; font-size: 10px; color: #48484a; text-align: center; letter-spacing: 0.5px; font-weight: 600;}
-  .hidden { display: none !important; }
+  /* ==================== FILE LIST ==================== */
+  .file-list {
+    margin-top: 16px;
+    display: flex; flex-direction: column; gap: 8px;
+    max-height: 240px; overflow-y: auto;
+  }
+  .file-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 14px;
+    background: var(--bg-input);
+    border-radius: var(--radius-md);
+    font-size: 14px;
+  }
+  .file-item .file-icon { color: var(--accent); flex-shrink: 0; }
+  .file-item .file-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+  .file-item .file-size { color: var(--tx-secondary); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .file-item .file-dl {
+    background: var(--success); color: #fff;
+    padding: 8px 12px; border-radius: var(--radius-sm);
+    font-size: 12px; font-weight: 700;
+    border: none; cursor: pointer; min-height: 36px;
+    display: inline-flex; align-items: center; gap: 4px;
+  }
 
-  /* Tampilan Penerima Khusus */
-  .card-receiver { max-width: 400px; }
+  /* ==================== CREDIT ==================== */
+  .credit {
+    margin-top: 28px; font-size: 11px; color: var(--tx-credit);
+    text-align: center; letter-spacing: 0.5px; font-weight: 600;
+  }
 </style>
 </head>
 <body>
@@ -223,67 +350,107 @@
     <p class="tagline">Tanpa akun. Tanpa server. Cepat & Aman.</p>
   </div>
 
-  <div class="segmented-control">
-    <button id="tabKirimBtn" class="active" onclick="switchTab('kirim')">Kirim</button>
-    <button id="tabTerimaBtn" onclick="switchTab('terima')">Terima</button>
+  <div class="segmented-control" role="tablist" aria-label="Mode pengiriman">
+    <button id="tabKirimBtn" class="active" role="tab" aria-selected="true" aria-controls="tabKirim" tabindex="0">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+      Kirim
+    </button>
+    <button id="tabTerimaBtn" role="tab" aria-selected="false" aria-controls="tabTerima" tabindex="-1">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Terima
+    </button>
   </div>
 
-  <div id="tabKirim" class="tab-content active">
-    <div id="dropzone">Ketuk untuk memilih banyak file<br><span style="font-size:12px; opacity:0.7;">atau tarik dan lepas ke sini</span></div>
+  <!-- ==================== TAB KIRIM ==================== -->
+  <div id="tabKirim" class="tab-content active" role="tabpanel" aria-labelledby="tabKirimBtn">
+    <label for="fileInput" id="dropzone" tabindex="0" role="button" aria-label="Pilih file untuk dikirim">
+      <svg class="icon" style="width:32px;height:32px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      <span>Ketuk untuk memilih file</span>
+      <span style="font-size:12px; opacity:0.7;">atau tarik & lepas ke sini</span>
+    </label>
     
-    <input type="file" id="fileInput" multiple class="hidden">
-    <input type="file" id="folderInput" webkitdirectory directory multiple class="hidden">
+    <input type="file" id="fileInput" multiple hidden>
+    <input type="file" id="folderInput" webkitdirectory directory multiple hidden>
 
     <div class="folder-link-container">
-      <button id="btnPilihFolder">Atau pilih satu folder utuh</button>
+      <button id="btnPilihFolder" type="button">
+        <svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+        Atau pilih satu folder utuh
+      </button>
     </div>
 
-    <button id="btnBuat" class="btn-primary" style="margin-top: 20px;">Buat Link & QR Code</button>
+    <button id="btnBuat" type="button" class="btn-primary" style="margin-top: 20px;">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+      Buat Link & QR Code
+    </button>
 
     <div id="resultBox" class="hidden">
       <div class="link-box">
         <b>Link untuk penerima:</b>
         <span id="linkText"></span>
       </div>
-      <button class="btn-secondary" id="btnCopy">Salin Link</button>
+      <button class="btn-secondary" id="btnCopy" type="button">
+        <svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        Salin Link
+      </button>
       
       <div class="qr-container" id="qrContainer">
         <p>Pindai QR ini dengan HP</p>
         <div id="qrcode"></div>
       </div>
-      <div class="status" id="statusPengirim"></div>
+      <div class="status" id="statusPengirim" role="status" aria-live="polite"></div>
     </div>
 
     <div id="progressWrap" class="progress-wrapper">
       <div class="progress-track"><div id="progressBar" class="progress-bar"></div></div>
-      <div id="speedPengirim" class="speed-text hidden">0 MB/s</div>
+      <div class="progress-meta">
+        <span id="progressTextSend">0%</span>
+        <span id="speedPengirim">0 MB/s</span>
+      </div>
     </div>
   </div>
 
-  <div id="tabTerima" class="tab-content">
-    <p style="font-size: 13px; color: #8e8e93; margin: 0 0 16px 0; text-align: center;">Tempel link dari pengirim atau pindai QR.</p>
+  <!-- ==================== TAB TERIMA ==================== -->
+  <div id="tabTerima" class="tab-content" role="tabpanel" aria-labelledby="tabTerimaBtn">
+    <p style="font-size: 13px; color: var(--tx-secondary); margin: 0 0 16px 0; text-align: center;">Tempel link dari pengirim atau pindai QR.</p>
     
     <div id="penerimaInputGroup">
-      <input type="text" id="linkInput" placeholder="Tempel link (https://...)">
-      <button id="btnHubungkan" class="btn-primary">Hubungkan & Unduh</button>
-      <button class="btn-secondary" id="btnScan">Pindai QR Code</button>
+      <label for="linkInput" class="sr-only">Link dari pengirim</label>
+      <input type="text" id="linkInput" placeholder="Tempel link (https://...)" autocomplete="off">
+      <button id="btnHubungkan" type="button" class="btn-primary">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Hubungkan & Unduh
+      </button>
+      <button class="btn-secondary" id="btnScan" type="button">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        Pindai QR Code
+      </button>
     </div>
 
     <div id="reader"></div>
-    <button class="btn-secondary hidden" id="btnBatalScan" style="color: #ff453a; background: rgba(255,69,58,0.1);">Batal Pindai</button>
+    <button class="btn-secondary hidden" id="btnBatalScan" type="button" style="color: var(--danger); background: rgba(255,69,58,0.1);">
+      Batal Pindai
+    </button>
 
-    <div id="statusPenerima" class="status"></div>
+    <div id="statusPenerima" class="status" role="status" aria-live="polite"></div>
+    
+    <!-- File List (menggantikan auto-download) -->
+    <div id="fileListRecv" class="file-list hidden" aria-live="polite"></div>
+
     <div id="progressWrapRecv" class="progress-wrapper">
       <div class="progress-track"><div id="progressBarRecv" class="progress-bar"></div></div>
-      <div id="speedPenerima" class="speed-text hidden">0 MB/s</div>
+      <div class="progress-meta">
+        <span id="progressTextRecv">0%</span>
+        <span id="speedPenerima">0 MB/s</span>
+      </div>
     </div>
   </div>
 
-  <p class="credit">Created by Bustami_Atmadja x DeepSeek</p>
+  <p class="credit">Created by Bustami_Atmadja × DeepSeek</p>
 </div>
 
 <!-- ========================================== -->
-<!-- TAMPILAN 2: HALAMAN PENERIMA KHUSUS (KLIK LINK) -->
+<!-- TAMPILAN 2: PENERIMA KHUSUS (KLIK LINK) -->
 <!-- ========================================== -->
 <div class="card card-receiver hidden" id="cardPenerimaKhusus">
   <div class="header" style="margin-bottom: 32px;">
@@ -291,51 +458,64 @@
     <p class="tagline">Seseorang mengirimkan file untukmu.</p>
   </div>
 
-  <button id="btnUnduhLangsung" class="btn-primary" style="padding: 18px; font-size: 17px;">Unduh File Sekarang</button>
+  <button id="btnUnduhLangsung" type="button" class="btn-primary" style="padding: 18px; font-size: 17px;">
+    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+    Mulai Terima File
+  </button>
 
-  <div id="statusPenerimaKhusus" class="status" style="margin-top: 20px;"></div>
+  <div id="statusPenerimaKhusus" class="status" role="status" aria-live="polite" style="margin-top: 20px;"></div>
+  
+  <div id="fileListRecvKhusus" class="file-list hidden" aria-live="polite"></div>
+
   <div id="progressWrapRecvKhusus" class="progress-wrapper">
     <div class="progress-track"><div id="progressBarRecvKhusus" class="progress-bar"></div></div>
-    <div id="speedPenerimaKhusus" class="speed-text hidden">0 MB/s</div>
+    <div class="progress-meta">
+      <span id="progressTextRecvKhusus">0%</span>
+      <span id="speedPenerimaKhusus">0 MB/s</span>
+    </div>
   </div>
   
-  <p class="credit" style="margin-top: 40px;">Created by Bustami_Atmadja x DeepSeek</p>
+  <p class="credit" style="margin-top: 40px;">Created by Bustami_Atmadja × DeepSeek</p>
 </div>
 
 <script>
 (function() {
   "use strict";
 
-  window.switchTab = function(tab) {
-    if (tab === 'kirim') {
-      document.getElementById('tabKirimBtn').classList.add('active');
-      document.getElementById('tabTerimaBtn').classList.remove('active');
-      document.getElementById('tabKirim').classList.add('active');
-      document.getElementById('tabTerima').classList.remove('active');
-    } else {
-      document.getElementById('tabTerimaBtn').classList.add('active');
-      document.getElementById('tabKirimBtn').classList.remove('active');
-      document.getElementById('tabTerima').classList.add('active');
-      document.getElementById('tabKirim').classList.remove('active');
-    }
-  };
-
+  /* ==================== HELPERS ==================== */
+  function $(id) { return document.getElementById(id); }
   function formatBytes(b) {
     if (b < 1024) return b + " B";
     if (b < 1048576) return (b/1024).toFixed(1) + " KB";
     if (b < 1073741824) return (b/1048576).toFixed(1) + " MB";
     return (b/1073741824).toFixed(2) + " GB";
   }
-  
-  // Fungsi untuk menghitung kecepatan (MB/s)
   function hitungKecepatan(bytes, waktuMs) {
     if (waktuMs === 0) return "0 MB/s";
     var mbps = (bytes / 1048576) / (waktuMs / 1000);
     return mbps.toFixed(2) + " MB/s";
   }
 
-  function $(id) { return document.getElementById(id); }
+  /* ==================== TAB SWITCH ==================== */
+  window.switchTab = function(tab) {
+    var kirimBtn = $("tabKirimBtn"), terimaBtn = $("tabTerimaBtn");
+    var kirimTab = $("tabKirim"), terimaTab = $("tabTerima");
+    var isKirim = tab === "kirim";
+    
+    kirimBtn.classList.toggle("active", isKirim);
+    terimaBtn.classList.toggle("active", !isKirim);
+    kirimBtn.setAttribute("aria-selected", isKirim);
+    terimaBtn.setAttribute("aria-selected", !isKirim);
+    kirimBtn.tabIndex = isKirim ? 0 : -1;
+    terimaBtn.tabIndex = isKirim ? -1 : 0;
+    
+    kirimTab.classList.toggle("active", isKirim);
+    terimaTab.classList.toggle("active", !isKirim);
+  };
+  $("tabKirimBtn").onclick = function() { switchTab("kirim"); };
+  $("tabTerimaBtn").onclick = function() { switchTab("terima"); };
 
+  /* ==================== ROUTING ==================== */
   var hash = window.location.hash.replace(/^#/, "");
   var isLinkPenerima = hash.indexOf("recv=") === 0;
 
@@ -349,6 +529,7 @@
     inisialisasiHalamanUtama();
   }
 
+  /* ==================== HALAMAN UTAMA ==================== */
   function inisialisasiHalamanUtama() {
     var dropzone = $("dropzone");
     var fileInput = $("fileInput");
@@ -361,15 +542,21 @@
     var statusPengirim = $("statusPengirim");
     var progressWrap = $("progressWrap");
     var progressBar = $("progressBar");
+    var progressTextSend = $("progressTextSend");
     var speedPengirim = $("speedPengirim");
     var qrContainer = $("qrContainer");
 
     var selectedFiles = [];
     var peer = null;
-    var chunkSize = 8 * 1024; 
+    var chunkSize = 8 * 1024;
     var currentLink = "";
+    var defaultDropzoneHTML = dropzone.innerHTML;
+    var defaultBuatHTML = btnBuat.innerHTML;
 
     dropzone.addEventListener("click", function() { fileInput.click(); });
+    dropzone.addEventListener("keydown", function(e) {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fileInput.click(); }
+    });
     btnPilihFolder.addEventListener("click", function(e) { e.stopPropagation(); folderInput.click(); });
 
     dropzone.addEventListener("dragover", function(e) { e.preventDefault(); dropzone.classList.add("dragover"); });
@@ -381,14 +568,10 @@
         var items = e.dataTransfer.items;
         var files = [];
         var folderPromises = [];
-        
         for (var i = 0; i < items.length; i++) {
           var item = items[i].webkitGetAsEntry();
-          if (item) {
-            folderPromises.push(traverseFileTree(item, files));
-          }
+          if (item) folderPromises.push(traverseFileTree(item, files));
         }
-        
         Promise.all(folderPromises).then(function() {
           if (files.length > 0) handleFiles(files);
         });
@@ -427,15 +610,21 @@
     function handleFiles(files) {
       selectedFiles = Array.from(files);
       var totalSize = selectedFiles.reduce(function(acc, f) { return acc + f.size; }, 0);
-      dropzone.innerHTML = "<b>" + selectedFiles.length + " File Terpilih</b><br><span style='font-size:12px;'>Total: " + formatBytes(totalSize) + "</span>";
+      dropzone.innerHTML = '<svg class="icon" style="width:32px;height:32px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>' +
+        '<b>' + selectedFiles.length + ' File Terpilih</b>' +
+        '<span style="font-size:12px;">Total: ' + formatBytes(totalSize) + '</span>';
       dropzone.classList.add("hasfile");
     }
 
     btnBuat.addEventListener("click", function() {
       if (selectedFiles.length === 0) {
-        statusPengirim.className = "status err"; statusPengirim.textContent = "Pilih file atau folder terlebih dahulu."; return;
+        statusPengirim.className = "status err";
+        statusPengirim.textContent = "Pilih file atau folder terlebih dahulu.";
+        return;
       }
-      btnBuat.disabled = true; btnBuat.textContent = "Menyiapkan...";
+      btnBuat.disabled = true;
+      btnBuat.innerHTML = '<span class="spinner"></span> Menyiapkan...';
+      btnBuat.setAttribute("aria-busy", "true");
       qrContainer.classList.add("hidden");
 
       peer = new Peer();
@@ -443,8 +632,10 @@
         currentLink = window.location.origin + window.location.pathname + "#recv=" + id;
         linkText.textContent = currentLink;
         resultBox.classList.remove("hidden");
-        btnBuat.textContent = "Link Siap Dibagikan";
-        statusPengirim.className = "status ok"; statusPengirim.textContent = "Menunggu penerima terhubung...";
+        btnBuat.innerHTML = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg> Link Siap Dibagikan';
+        btnBuat.removeAttribute("aria-busy");
+        statusPengirim.className = "status ok";
+        statusPengirim.textContent = "Menunggu penerima terhubung...";
 
         $("qrcode").innerHTML = "";
         new QRCode(document.getElementById("qrcode"), {
@@ -453,16 +644,24 @@
         qrContainer.classList.remove("hidden");
       });
 
+      peer.on("error", function(err) {
+        btnBuat.disabled = false;
+        btnBuat.innerHTML = defaultBuatHTML;
+        btnBuat.removeAttribute("aria-busy");
+        statusPengirim.className = "status err";
+        statusPengirim.textContent = "Gagal membuat link: " + err.message;
+      });
+
       peer.on("connection", function(conn) {
         conn.on("open", function() {
           var metadata = selectedFiles.map(function(f) { return { name: f.name, size: f.size }; });
           conn.send({ type: "meta_list", files: metadata });
           
-          progressWrap.style.display = "block"; 
+          progressWrap.style.display = "block";
           progressBar.style.width = "0%";
-          speedPengirim.classList.remove("hidden");
+          progressTextSend.textContent = "0%";
           speedPengirim.textContent = "0 MB/s";
-          statusPengirim.textContent = "Mengirim: " + selectedFiles.length + " file...";
+          statusPengirim.textContent = "Mengirim " + selectedFiles.length + " file...";
 
           var currentFileIndex = 0;
           var offset = 0;
@@ -474,6 +673,8 @@
             if (currentFileIndex >= selectedFiles.length) {
               conn.send({ type: "all_done" });
               progressBar.style.width = "100%";
+              progressTextSend.textContent = "100%";
+              statusPengirim.className = "status ok";
               statusPengirim.textContent = "Semua file berhasil terkirim!";
               speedPengirim.textContent = "Selesai";
               return;
@@ -481,7 +682,7 @@
 
             var file = selectedFiles[currentFileIndex];
             offset = 0;
-            statusPengirim.textContent = "Mengirim file " + (currentFileIndex + 1) + " dari " + selectedFiles.length + ": " + file.name;
+            statusPengirim.textContent = "Mengirim " + (currentFileIndex + 1) + "/" + selectedFiles.length + ": " + file.name;
             conn.send({ type: "file_start", index: currentFileIndex });
 
             function readNextChunk() {
@@ -491,9 +692,7 @@
                 sendNextFile();
                 return;
               }
-              
-              if (offset === 0) startTime = Date.now(); // Mulai hitung waktu di file baru
-
+              if (offset === 0) startTime = Date.now();
               reader.readAsArrayBuffer(file.slice(offset, offset + chunkSize));
             }
 
@@ -503,19 +702,16 @@
               offset += e.target.result.byteLength;
               
               var totalSent = selectedFiles.slice(0, currentFileIndex).reduce(function(acc, f) { return acc + f.size; }, 0) + offset;
-              progressBar.style.width = ((totalSent / totalSize) * 100).toFixed(1) + "%";
+              var pct = ((totalSent / totalSize) * 100).toFixed(1);
+              progressBar.style.width = pct + "%";
+              progressTextSend.textContent = pct + "%";
 
-              // Hitung kecepatan berdasarkan waktu sejak file ini mulai dikirim
               var elapsed = Date.now() - startTime;
-              if (elapsed > 500) { // Perbarui teks kecepatan setiap 0.5 detik agar tidak berkedip
-                speedPengirim.textContent = hitungKecepatan(offset, elapsed);
-              }
-
+              if (elapsed > 500) speedPengirim.textContent = hitungKecepatan(offset, elapsed);
               setTimeout(readNextChunk, 2);
             };
             readNextChunk();
           }
-
           sendNextFile();
         });
       });
@@ -524,29 +720,40 @@
     btnCopy.addEventListener("click", function() {
       if (!currentLink) return;
       navigator.clipboard.writeText(currentLink).then(function() {
-        btnCopy.textContent = "Tersalin!"; setTimeout(function() { btnCopy.textContent = "Salin Link"; }, 1500);
+        btnCopy.innerHTML = '<svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg> Tersalin!';
+        setTimeout(function() {
+          btnCopy.innerHTML = '<svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Salin Link';
+        }, 1500);
       });
     });
 
+    /* ==================== TAB TERIMA ==================== */
     var linkInput = $("linkInput");
     var btnHubungkan = $("btnHubungkan");
     var statusPenerima = $("statusPenerima");
     var progressWrapRecv = $("progressWrapRecv");
     var progressBarRecv = $("progressBarRecv");
+    var progressTextRecv = $("progressTextRecv");
     var speedPenerima = $("speedPenerima");
-    
+    var fileListRecv = $("fileListRecv");
+
     btnHubungkan.addEventListener("click", function() {
       var link = linkInput.value.trim();
       if (!link || link.indexOf("#recv=") === -1) {
-        statusPenerima.className = "status err"; statusPenerima.textContent = "Link tidak valid."; return;
+        statusPenerima.className = "status err";
+        statusPenerima.textContent = "Link tidak valid.";
+        return;
       }
       var senderId = link.split("#recv=")[1];
-      
       btnHubungkan.disabled = true;
-      statusPenerima.className = "status"; statusPenerima.textContent = "Menghubungkan...";
-      prosesTransfer(senderId, statusPenerima, progressWrapRecv, progressBarRecv, speedPenerima, btnHubungkan);
+      btnHubungkan.innerHTML = '<span class="spinner"></span> Menghubungkan...';
+      statusPenerima.className = "status";
+      statusPenerima.textContent = "Menghubungkan...";
+      
+      prosesTransfer(senderId, statusPenerima, progressWrapRecv, progressBarRecv, progressTextRecv, speedPenerima, btnHubungkan, fileListRecv);
     });
 
+    /* ==================== QR SCANNER ==================== */
     var btnScan = $("btnScan");
     var btnBatalScan = $("btnBatalScan");
     var readerDiv = $("reader");
@@ -558,9 +765,7 @@
       readerDiv.style.display = "block";
       btnBatalScan.classList.remove("hidden");
 
-      if (!html5QrcodeScanner) {
-        html5QrcodeScanner = new Html5Qrcode("reader");
-      }
+      if (!html5QrcodeScanner) html5QrcodeScanner = new Html5Qrcode("reader");
 
       html5QrcodeScanner.start(
         { facingMode: "environment" },
@@ -571,13 +776,18 @@
             linkInput.value = decodedText;
             var senderId = decodedText.split("#recv=")[1];
             btnHubungkan.disabled = true;
-            statusPenerima.className = "status"; statusPenerima.textContent = "Menghubungkan...";
-            prosesTransfer(senderId, statusPenerima, progressWrapRecv, progressBarRecv, speedPenerima, btnHubungkan);
+            btnHubungkan.innerHTML = '<span class="spinner"></span> Menghubungkan...';
+            statusPenerima.className = "status";
+            statusPenerima.textContent = "Menghubungkan...";
+            prosesTransfer(senderId, statusPenerima, progressWrapRecv, progressBarRecv, progressTextRecv, speedPenerima, btnHubungkan, fileListRecv);
           }
         },
-        function(error) {}
+        function(error) {
+          // Silent per-frame error
+        }
       ).catch(function(err) {
-        statusPenerima.className = "status err"; statusPenerima.textContent = "Gagal akses kamera.";
+        statusPenerima.className = "status err";
+        statusPenerima.textContent = "Gagal akses kamera.";
         hentikanKamera();
       });
     });
@@ -585,37 +795,41 @@
     btnBatalScan.addEventListener("click", hentikanKamera);
 
     function hentikanKamera() {
-      if (html5QrcodeScanner && html5QrcodeScanner.isScanning) {
-        html5QrcodeScanner.stop().then(function() {
-          readerDiv.style.display = "none";
-          btnBatalScan.classList.add("hidden");
-          penerimaInputGroup.classList.remove("hidden");
-        });
-      } else {
+      var showInput = function() {
         readerDiv.style.display = "none";
         btnBatalScan.classList.add("hidden");
         penerimaInputGroup.classList.remove("hidden");
+      };
+      if (html5QrcodeScanner && html5QrcodeScanner.isScanning) {
+        html5QrcodeScanner.stop().then(showInput).catch(showInput);
+      } else {
+        showInput();
       }
     }
   }
 
+  /* ==================== PENERIMA KHUSUS ==================== */
   function mulaiUnduhKhusus(senderId) {
     var btn = $("btnUnduhLangsung");
     var status = $("statusPenerimaKhusus");
     var wrap = $("progressWrapRecvKhusus");
     var bar = $("progressBarRecvKhusus");
+    var text = $("progressTextRecvKhusus");
     var speed = $("speedPenerimaKhusus");
+    var list = $("fileListRecvKhusus");
 
     btn.addEventListener("click", function() {
       btn.disabled = true;
-      status.className = "status"; status.textContent = "Menghubungkan...";
-      prosesTransfer(senderId, status, wrap, bar, speed, btn);
+      btn.innerHTML = '<span class="spinner"></span> Menghubungkan...';
+      status.className = "status";
+      status.textContent = "Menghubungkan...";
+      prosesTransfer(senderId, status, wrap, bar, text, speed, btn, list);
     });
   }
 
-  function prosesTransfer(senderId, statusEl, wrapEl, barEl, speedEl, btnEl) {
+  /* ==================== PROSES TRANSFER (PENERIMA) ==================== */
+  function prosesTransfer(senderId, statusEl, wrapEl, barEl, textEl, speedEl, btnEl, listEl) {
     var recvPeer = new Peer();
-    
     var fileList = [];
     var currentFileIndex = 0;
     var receivedChunks = [];
@@ -624,12 +838,14 @@
     var totalOverallSize = 0;
     var totalReceivedOverallSize = 0;
     var startTime = 0;
+    var receivedBlobs = []; // Untuk konfirmasi unduh manual
 
     recvPeer.on("open", function() {
       var conn = recvPeer.connect(senderId);
       
       conn.on("open", function() {
-        statusEl.className = "status ok"; statusEl.textContent = "Terhubung. Menunggu data...";
+        statusEl.className = "status ok";
+        statusEl.textContent = "Terhubung. Menunggu data...";
       });
       
       conn.on("data", function(data) {
@@ -638,64 +854,114 @@
           totalOverallSize = fileList.reduce(function(acc, f) { return acc + f.size; }, 0);
           totalReceivedOverallSize = 0;
           currentFileIndex = 0;
+          receivedBlobs = [];
+          if (listEl) listEl.innerHTML = "";
           statusEl.textContent = "Menerima " + fileList.length + " file...";
-          wrapEl.style.display = "block"; 
+          wrapEl.style.display = "block";
           barEl.style.width = "0%";
-          speedEl.classList.remove("hidden");
+          textEl.textContent = "0%";
           speedEl.textContent = "0 MB/s";
         } 
-        
         else if (data.type === "file_start") {
           currentFileIndex = data.index;
           currentFileMeta = fileList[currentFileIndex];
           receivedChunks = [];
           receivedSize = 0;
-          startTime = Date.now(); // Mulai hitung waktu terima di file baru
-          statusEl.textContent = "Mengunduh file " + (currentFileIndex + 1) + " dari " + fileList.length + ": " + currentFileMeta.name;
+          startTime = Date.now();
+          statusEl.textContent = "Mengunduh " + (currentFileIndex + 1) + "/" + fileList.length + ": " + currentFileMeta.name;
         } 
-        
         else if (data.type === "chunk") {
-          receivedChunks.push(data.data); 
+          receivedChunks.push(data.data);
           receivedSize += data.data.byteLength;
-          
           var totalProgress = ((totalReceivedOverallSize + receivedSize) / totalOverallSize) * 100;
           barEl.style.width = totalProgress.toFixed(1) + "%";
-
-          // Hitung kecepatan terima
+          textEl.textContent = totalProgress.toFixed(1) + "%";
           var elapsed = Date.now() - startTime;
-          if (elapsed > 500) {
-            speedEl.textContent = hitungKecepatan(receivedSize, elapsed);
-          }
+          if (elapsed > 500) speedEl.textContent = hitungKecepatan(receivedSize, elapsed);
         } 
-        
         else if (data.type === "file_done") {
           var blob = new Blob(receivedChunks);
-          var url = URL.createObjectURL(blob);
-          var a = document.createElement("a");
-          a.href = url; a.download = currentFileMeta ? currentFileMeta.name : "file";
-          document.body.appendChild(a); a.click(); document.body.removeChild(a);
-          setTimeout(function() { URL.revokeObjectURL(url); }, 10000);
-          
+          receivedBlobs.push({ name: currentFileMeta ? currentFileMeta.name : "file", blob: blob, size: blob.size });
+          addFileToList(listEl, currentFileMeta ? currentFileMeta.name : "file", blob);
           totalReceivedOverallSize += currentFileMeta.size;
           receivedChunks = [];
           receivedSize = 0;
         } 
-        
         else if (data.type === "all_done") {
           barEl.style.width = "100%";
-          statusEl.className = "status ok"; 
-          statusEl.textContent = "Semua " + fileList.length + " file berhasil diunduh!";
+          textEl.textContent = "100%";
+          statusEl.className = "status ok";
+          statusEl.textContent = "Semua " + fileList.length + " file diterima! Ketuk tombol di bawah untuk menyimpan.";
           speedEl.textContent = "Selesai";
+          if (btnEl) {
+            btnEl.disabled = false;
+            btnEl.innerHTML = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Simpan Semua File';
+            btnEl.onclick = function() {
+              receivedBlobs.forEach(function(f, i) {
+                setTimeout(function() {
+                  var url = URL.createObjectURL(f.blob);
+                  var a = document.createElement("a");
+                  a.href = url;
+                  a.download = f.name;
+                  document.body.appendChild(a);
+                  a.click();
+                  document.body.removeChild(a);
+                  setTimeout(function() { URL.revokeObjectURL(url); }, 10000);
+                }, i * 300);
+              });
+            };
+          }
         }
       });
     });
     
     recvPeer.on("error", function(err) {
-      statusEl.className = "status err"; statusEl.textContent = "Koneksi gagal: " + err.message;
-      if(btnEl) btnEl.disabled = false;
+      statusEl.className = "status err";
+      statusEl.textContent = "Koneksi gagal: " + err.message;
+      if (btnEl) { btnEl.disabled = false; }
     });
   }
 
+  function addFileToList(container, name, blob) {
+    if (!container) return;
+    container.classList.remove("hidden");
+    var item = document.createElement("div");
+    item.className = "file-item";
+
+    var icon = document.createElement("div");
+    icon.className = "file-icon";
+    icon.innerHTML = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>';
+
+    var nameEl = document.createElement("div");
+    nameEl.className = "file-name";
+    nameEl.textContent = name;
+
+    var sizeEl = document.createElement("div");
+    sizeEl.className = "file-size";
+    sizeEl.textContent = formatBytes(blob.size);
+
+    var btn = document.createElement("button");
+    btn.className = "file-dl";
+    btn.type = "button";
+    btn.setAttribute("aria-label", "Simpan " + name);
+    btn.innerHTML = '<svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Simpan';
+    btn.onclick = function() {
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement("a");
+      a.href = url;
+      a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(function() { URL.revokeObjectURL(url); }, 10000);
+    };
+
+    item.appendChild(icon);
+    item.appendChild(nameEl);
+    item.appendChild(sizeEl);
+    item.appendChild(btn);
+    container.appendChild(item);
+  }
 })();
 </script>
 </body>
